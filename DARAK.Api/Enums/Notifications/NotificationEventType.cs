@@ -1,0 +1,38 @@
+namespace DARAK.Api.Enums;
+
+public enum NotificationEventType
+{
+    General = 1,
+    BillCreated = 2,
+    PaymentReceived = 3,
+    PaymentFailed = 4,
+    ConversationAssigned = 5,
+    ConversationEscalated = 6,
+    BillDisputeOpened = 7,
+    RentOverdue = 8,
+    VisitorPassCreated = 9,
+    DocumentUploaded = 10,
+    ApprovalRequested = 11,
+    ApprovalApproved = 12,
+    ApprovalRejected = 13,
+    ApprovalCancelled = 14,
+    ApprovalExecuted = 15,
+    RiskFlagCreated = 16,
+    RiskFlagAssigned = 17,
+    RiskFlagSeverityChanged = 18,
+    RiskFlagReviewed = 19,
+    RiskFlagResolved = 20,
+    RiskFlagDismissed = 21,
+    FinancialAdjustmentRequested = 22,
+    FinancialAdjustmentApplied = 23,
+    FinancialAdjustmentCancelled = 24,
+    CommunicationCampaignSent = 25,
+    DocumentApproved = 26,
+    DocumentRejected = 27,
+    DocumentExpiring = 28,
+    DocumentRequirementMissing = 29,
+    UtilityOutageCreated = 30,
+    UtilityOutageUpdated = 31,
+    UtilityOutageResolved = 32,
+    UtilityOutageCancelled = 33
+}

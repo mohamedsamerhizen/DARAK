@@ -1,0 +1,38 @@
+name: DARAK .NET Build and Test
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build and test DARAK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore ./DARAK.sln
+
+      - name: Build
+        run: dotnet build ./DARAK.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test ./DARAK.sln --configuration Release --no-build --logger "trx;LogFileName=darak-tests.trx"

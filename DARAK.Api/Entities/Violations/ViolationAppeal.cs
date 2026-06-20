@@ -1,0 +1,55 @@
+using DARAK.Api.Enums;
+using DARAK.Api.Identity;
+
+namespace DARAK.Api.Entities;
+
+public sealed class ViolationAppeal
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid CompoundId { get; set; }
+
+    public Guid ResidentProfileId { get; set; }
+
+    public Guid ViolationId { get; set; }
+
+    public Guid? ViolationFineId { get; set; }
+
+    public ViolationAppealStatus Status { get; set; } = ViolationAppealStatus.Submitted;
+
+    public string Reason { get; set; } = string.Empty;
+
+    public string ResidentMessage { get; set; } = string.Empty;
+
+    public string? AdminDecisionNotes { get; set; }
+
+    public decimal? ReducedFineAmount { get; set; }
+
+    public Guid? FinancialAdjustmentId { get; set; }
+
+    public Guid CreatedByUserId { get; set; }
+
+    public Guid? ReviewedByUserId { get; set; }
+
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public DateTime? UpdatedAtUtc { get; set; }
+
+    public DateTime? ReviewedAtUtc { get; set; }
+
+    public byte[] RowVersion { get; set; } = [];
+
+    public Compound Compound { get; set; } = null!;
+
+    public ResidentProfile ResidentProfile { get; set; } = null!;
+
+    public Violation Violation { get; set; } = null!;
+
+    public ViolationFine? ViolationFine { get; set; }
+
+    public FinancialAdjustment? FinancialAdjustment { get; set; }
+
+    public ApplicationUser CreatedByUser { get; set; } = null!;
+
+    public ApplicationUser? ReviewedByUser { get; set; }
+}
