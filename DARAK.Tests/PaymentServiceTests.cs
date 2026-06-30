@@ -274,6 +274,137 @@ public sealed class PaymentServiceTests
         result.Status.Should().Be(ServiceResultStatus.Success);
     }
 
+    [Fact]
+    public async Task RecordManualPaymentAsync_ReusesSameIdempotencyKeyWithoutDuplicatingPayment()
+    {
+        await using var dbContext = TestDb.Create();
+        var target = await SeedFinancialTargetAsync(dbContext, PaymentTargetType.RentInvoice);
+        var service = new PaymentService(dbContext, new FakeCompoundAccessService([target.CompoundId]));
+        var request = new ManualPaymentRequest
+        {
+            TargetType = PaymentTargetType.RentInvoice,
+            TargetId = target.TargetId,
+            PaymentMethod = PaymentMethod.Cash,
+            Amount = 25m,
+            IdempotencyKey = "manual-idempotency-key-1"
+        };
+
+        var first = await service.RecordManualPaymentAsync(request);
+        var second = await service.RecordManualPaymentAsync(request);
+
+        first.Status.Should().Be(ServiceResultStatus.Success);
+        second.Status.Should().Be(ServiceResultStatus.Success);
+        second.Value!.Id.Should().Be(first.Value!.Id);
+        dbContext.Payments.Count(payment => payment.IdempotencyKey == request.IdempotencyKey).Should().Be(1);
+        (await dbContext.RentInvoices.SingleAsync(item => item.Id == target.TargetId)).PaidAmount.Should().Be(25m);
+    }
+
+    [Fact]
+    public async Task RecordManualPaymentAsync_RejectsIdempotencyKeyReusedForDifferentPayment()
+    {
+        await using var dbContext = TestDb.Create();
+        var target = await SeedFinancialTargetAsync(dbContext, PaymentTargetType.RentInvoice);
+        var service = new PaymentService(dbContext, new FakeCompoundAccessService([target.CompoundId]));
+        await service.RecordManualPaymentAsync(new ManualPaymentRequest
+        {
+            TargetType = PaymentTargetType.RentInvoice,
+            TargetId = target.TargetId,
+            PaymentMethod = PaymentMethod.Cash,
+            Amount = 25m,
+            IdempotencyKey = "manual-idempotency-key-2"
+        });
+
+        var result = await service.RecordManualPaymentAsync(new ManualPaymentRequest
+        {
+            TargetType = PaymentTargetType.RentInvoice,
+            TargetId = target.TargetId,
+            PaymentMethod = PaymentMethod.Cash,
+            Amount = 30m,
+            IdempotencyKey = "manual-idempotency-key-2"
+        });
+
+        result.Status.Should().Be(ServiceResultStatus.Conflict);
+        dbContext.Payments.Count(payment => payment.IdempotencyKey == "manual-idempotency-key-2").Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ConfirmResidentMockPaymentSuccessAsync_GeneratesDeterministicProviderTransactionId()
+    {
+        await using var dbContext = TestDb.Create();
+        var seed = await SeedUtilityBillAsync(dbContext);
+        var payment = new Payment
+        {
+            CompoundId = seed.CompoundId,
+            ResidentProfileId = seed.ResidentProfileId,
+            TargetType = PaymentTargetType.UtilityBill,
+            TargetId = seed.UtilityBillId,
+            PaymentMethod = PaymentMethod.ZainCashMock,
+            PaymentStatus = PaymentStatus.Pending,
+            Amount = 40m,
+            PaymentReference = "PAY-MOCK-GEN"
+        };
+        dbContext.Payments.Add(payment);
+        await dbContext.SaveChangesAsync();
+        var service = new PaymentService(dbContext);
+
+        var result = await service.ConfirmResidentMockPaymentSuccessAsync(
+            seed.UserId,
+            payment.Id,
+            PaymentMethod.ZainCashMock,
+            new ConfirmMockPaymentRequest());
+
+        result.Status.Should().Be(ServiceResultStatus.Success);
+        dbContext.PaymentAttempts.Should().ContainSingle(attempt =>
+            attempt.PaymentId == payment.Id
+            && attempt.ProviderTransactionId == $"MOCK-ZainCashMock-{payment.Id:N}");
+    }
+
+    [Fact]
+    public async Task ConfirmResidentMockPaymentSuccessAsync_RejectsDuplicateProviderTransactionIdAcrossPayments()
+    {
+        await using var dbContext = TestDb.Create();
+        var seed = await SeedUtilityBillAsync(dbContext);
+        var firstPayment = new Payment
+        {
+            CompoundId = seed.CompoundId,
+            ResidentProfileId = seed.ResidentProfileId,
+            TargetType = PaymentTargetType.UtilityBill,
+            TargetId = seed.UtilityBillId,
+            PaymentMethod = PaymentMethod.ZainCashMock,
+            PaymentStatus = PaymentStatus.Pending,
+            Amount = 10m,
+            PaymentReference = "PAY-MOCK-DUP-1"
+        };
+        var secondPayment = new Payment
+        {
+            CompoundId = seed.CompoundId,
+            ResidentProfileId = seed.ResidentProfileId,
+            TargetType = PaymentTargetType.UtilityBill,
+            TargetId = seed.UtilityBillId,
+            PaymentMethod = PaymentMethod.ZainCashMock,
+            PaymentStatus = PaymentStatus.Pending,
+            Amount = 10m,
+            PaymentReference = "PAY-MOCK-DUP-2"
+        };
+        dbContext.Payments.AddRange(firstPayment, secondPayment);
+        await dbContext.SaveChangesAsync();
+        var service = new PaymentService(dbContext);
+        await service.ConfirmResidentMockPaymentSuccessAsync(
+            seed.UserId,
+            firstPayment.Id,
+            PaymentMethod.ZainCashMock,
+            new ConfirmMockPaymentRequest { ProviderTransactionId = "PROVIDER-DUP-1" });
+
+        var result = await service.ConfirmResidentMockPaymentSuccessAsync(
+            seed.UserId,
+            secondPayment.Id,
+            PaymentMethod.ZainCashMock,
+            new ConfirmMockPaymentRequest { ProviderTransactionId = "PROVIDER-DUP-1" });
+
+        result.Status.Should().Be(ServiceResultStatus.Conflict);
+        dbContext.PaymentAttempts.Count(attempt => attempt.ProviderTransactionId == "PROVIDER-DUP-1").Should().Be(1);
+    }
+
     private static async Task<UtilitySeed> SeedUtilityBillAsync(DARAK.Api.Data.ApplicationDbContext dbContext)
     {
         var compound = new Compound { Name = "Darak", Code = "D1", City = "Baghdad", Area = "Karrada" };

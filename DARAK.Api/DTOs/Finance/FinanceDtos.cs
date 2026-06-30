@@ -36,6 +36,8 @@ public sealed record FinancialControlDashboardResponse(
 
 public sealed class ResidentStatementQuery
 {
+    public Guid? ResidentProfileId { get; init; }
+
     public DateOnly? FromDate { get; init; }
 
     public DateOnly? ToDate { get; init; }

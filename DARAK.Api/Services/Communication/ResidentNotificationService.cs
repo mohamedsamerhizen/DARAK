@@ -31,6 +31,11 @@ public sealed class ResidentNotificationService(
             return ServiceResult<ResidentNotificationResponse>.NotFound("User was not found.");
         }
 
+        if (!await CanCurrentScopeAccessTargetUserAsync(request.UserId, cancellationToken))
+        {
+            return ServiceResult<ResidentNotificationResponse>.Forbidden("Current user cannot send notifications to this user.");
+        }
+
         var notification = new ResidentNotification
         {
             UserId = request.UserId,
@@ -185,6 +190,52 @@ public sealed class ResidentNotificationService(
     {
         return compoundAccessService is null
             || await compoundAccessService.CanCurrentUserAccessCompoundAsync(compoundId, cancellationToken);
+    }
+
+    private async Task<bool> CanCurrentScopeAccessTargetUserAsync(
+        Guid targetUserId,
+        CancellationToken cancellationToken)
+    {
+        if (compoundAccessService is null)
+        {
+            return true;
+        }
+
+        var scope = await compoundAccessService.GetCurrentScopeAsync(cancellationToken);
+        if (!scope.IsAuthenticated)
+        {
+            return false;
+        }
+
+        if (scope.IsSuperAdmin)
+        {
+            return true;
+        }
+
+        if (scope.AllowedCompoundIds.Length == 0)
+        {
+            return false;
+        }
+
+        var residentInScope = await dbContext.ResidentProfiles
+            .AsNoTracking()
+            .AnyAsync(profile =>
+                profile.UserId == targetUserId
+                && profile.IsActive
+                && scope.AllowedCompoundIds.Contains(profile.CompoundId),
+                cancellationToken);
+        if (residentInScope)
+        {
+            return true;
+        }
+
+        return await dbContext.UserCompoundAssignments
+            .AsNoTracking()
+            .AnyAsync(assignment =>
+                assignment.UserId == targetUserId
+                && assignment.IsActive
+                && scope.AllowedCompoundIds.Contains(assignment.CompoundId),
+                cancellationToken);
     }
 
     private async Task<ServiceResult<Guid>> ResolveCompoundIdAsync(

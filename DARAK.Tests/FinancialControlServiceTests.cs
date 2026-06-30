@@ -253,6 +253,63 @@ public sealed class FinancialControlServiceTests
     }
 
     [Fact]
+    public async Task GetResidentStatementForUserAsync_ReturnsStatementForSingleActiveProfile()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "F16-RS1");
+        var resident = await AddResidentAsync(dbContext, compound.Id, "Resident Statement User");
+        await AddUtilityBillAsync(dbContext, compound.Id, resident.Id, 500m, 0m, DateOnly.FromDateTime(DateTime.UtcNow).AddDays(5));
+        var service = CreateService(dbContext, compound.Id);
+
+        var result = await service.GetResidentStatementForUserAsync(resident.UserId, new ResidentStatementQuery());
+
+        result.IsSuccess.Should().BeTrue(result.Message);
+        result.Value!.ResidentProfileId.Should().Be(resident.Id);
+        result.Value.TotalDebits.Should().Be(500m);
+    }
+
+    [Fact]
+    public async Task GetResidentStatementForUserAsync_RequiresProfileIdWhenUserHasMultipleProfiles()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "F16-RS2");
+        var userId = Guid.NewGuid();
+        var first = await AddResidentForUserAsync(dbContext, compound.Id, userId, "Resident Profile One");
+        var second = await AddResidentForUserAsync(dbContext, compound.Id, userId, "Resident Profile Two");
+        await AddUtilityBillAsync(dbContext, compound.Id, second.Id, 300m, 0m, DateOnly.FromDateTime(DateTime.UtcNow).AddDays(5));
+        var service = CreateService(dbContext, compound.Id);
+
+        var missingProfile = await service.GetResidentStatementForUserAsync(userId, new ResidentStatementQuery());
+        var selectedProfile = await service.GetResidentStatementForUserAsync(
+            userId,
+            new ResidentStatementQuery { ResidentProfileId = second.Id });
+
+        missingProfile.Status.Should().Be(ServiceResultStatus.BadRequest);
+        missingProfile.Message.Should().Contain("residentProfileId");
+        selectedProfile.Status.Should().Be(ServiceResultStatus.Success);
+        selectedProfile.Value!.ResidentProfileId.Should().Be(second.Id);
+        selectedProfile.Value.ResidentProfileId.Should().NotBe(first.Id);
+    }
+
+    [Fact]
+    public async Task GetResidentStatementForUserAsync_ReturnsNotFoundForAnotherUsersProfile()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "F16-RS3");
+        var firstUser = Guid.NewGuid();
+        var secondUser = Guid.NewGuid();
+        var first = await AddResidentForUserAsync(dbContext, compound.Id, firstUser, "Resident Profile Owner");
+        var second = await AddResidentForUserAsync(dbContext, compound.Id, secondUser, "Other Resident Profile");
+        var service = CreateService(dbContext, compound.Id);
+
+        var result = await service.GetResidentStatementForUserAsync(
+            first.UserId,
+            new ResidentStatementQuery { ResidentProfileId = second.Id });
+
+        result.Status.Should().Be(ServiceResultStatus.NotFound);
+    }
+
+    [Fact]
     public async Task CreateAdjustmentAsync_CreatesPendingApprovalActivityAndNotification()
     {
         await using var dbContext = TestDb.Create();
@@ -720,14 +777,25 @@ public sealed class FinancialControlServiceTests
 
     private static async Task<ResidentProfile> AddResidentAsync(ApplicationDbContext dbContext, Guid compoundId, string fullName)
     {
+        var resident = await AddResidentForUserAsync(dbContext, compoundId, Guid.NewGuid(), fullName);
+        return resident;
+    }
+
+    private static async Task<ResidentProfile> AddResidentForUserAsync(
+        ApplicationDbContext dbContext,
+        Guid compoundId,
+        Guid userId,
+        string fullName)
+    {
         var resident = new ResidentProfile
         {
-            UserId = Guid.NewGuid(),
+            UserId = userId,
             CompoundId = compoundId,
             FullName = fullName,
             PhoneNumber = "+9647700000000",
             IsActive = true
         };
+
         dbContext.ResidentProfiles.Add(resident);
         await dbContext.SaveChangesAsync();
         return resident;

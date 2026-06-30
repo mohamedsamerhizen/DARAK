@@ -13,9 +13,16 @@ services:
       Jwt__SecretKey: "${JWT_SECRET_KEY}"
       Jwt__AccessTokenMinutes: "${JWT_ACCESS_TOKEN_MINUTES:-15}"
       Jwt__RefreshTokenDays: "${JWT_REFRESH_TOKEN_DAYS:-7}"
-      DevelopmentSuperAdmin__Email: "${DEVELOPMENT_SUPERADMIN_EMAIL}"
-      DevelopmentSuperAdmin__Password: "${DEVELOPMENT_SUPERADMIN_PASSWORD}"
-      DevelopmentSuperAdmin__FullName: "${DEVELOPMENT_SUPERADMIN_FULLNAME:-Development SuperAdmin}"
+      Registration__EnablePublicRegistration: "${REGISTRATION_ENABLE_PUBLIC_REGISTRATION:-true}"
+      Registration__AutoConfirmRegisteredUsers: "${REGISTRATION_AUTO_CONFIRM_REGISTERED_USERS:-true}"
+      BootstrapAdmin__Enabled: "${BOOTSTRAP_ADMIN_ENABLED:-false}"
+      BootstrapAdmin__Email: "${BOOTSTRAP_ADMIN_EMAIL:-}"
+      BootstrapAdmin__Password: "${BOOTSTRAP_ADMIN_PASSWORD:-}"
+      BootstrapAdmin__FullName: "${BOOTSTRAP_ADMIN_FULLNAME:-Development SuperAdmin}"
+      DemoSeed__Enabled: "${DEMO_SEED_ENABLED:-false}"
+      DemoSeed__SeedUsers: "${DEMO_SEED_USERS:-true}"
+      DemoSeed__DemoPassword: "${DEMO_SEED_PASSWORD:-}"
+      DemoSeed__AllowProduction: "${DEMO_SEED_ALLOW_PRODUCTION:-false}"
       Notifications__WorkerEnabled: "${NOTIFICATIONS_WORKER_ENABLED:-false}"
       Notifications__Email__Enabled: "${NOTIFICATIONS_EMAIL_ENABLED:-false}"
       Notifications__Email__Host: "${NOTIFICATIONS_EMAIL_HOST:-}"
@@ -57,4 +64,3 @@ services:
 volumes:
   sqlserver-data:
   document-uploads:
-

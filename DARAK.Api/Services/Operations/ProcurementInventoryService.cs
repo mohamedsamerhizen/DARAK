@@ -1,4 +1,5 @@
 using DARAK.Api.Data;
+using DARAK.Api.DTOs.Audit;
 using DARAK.Api.DTOs.Common;
 using DARAK.Api.DTOs.Operations;
 using DARAK.Api.Entities;
@@ -10,7 +11,8 @@ namespace DARAK.Api.Services;
 
 public sealed class ProcurementInventoryService(
     ApplicationDbContext dbContext,
-    ICompoundAccessService? compoundAccessService = null)
+    ICompoundAccessService? compoundAccessService = null,
+    IAuditLogService? auditLogService = null)
     : IProcurementInventoryService
 {
     private const int MaxNameLength = 150;
@@ -137,6 +139,18 @@ public sealed class ProcurementInventoryService(
             return ServiceResult<InventoryMovementResponse>.BadRequest("Only adjustment movement types are allowed here.");
         }
 
+        var reference = TrimOrNull(request.Reference);
+        if (reference is not null)
+        {
+            var existingMovement = await FindMovementByReferenceAsync(reference, cancellationToken);
+            if (existingMovement is not null)
+            {
+                return ServiceResult<InventoryMovementResponse>.Conflict("Inventory movement reference already exists.");
+            }
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
         var stockItem = await dbContext.StockItems.FirstOrDefaultAsync(item => item.Id == stockItemId, cancellationToken);
         if (stockItem is null || !await CanAccessCompoundAsync(stockItem.CompoundId, cancellationToken))
         {
@@ -155,11 +169,30 @@ public sealed class ProcurementInventoryService(
             request.Quantity,
             request.UnitCost,
             currentUserId,
-            TrimOrNull(request.Notes));
+            TrimOrNull(request.Notes),
+            reference);
 
-        ApplyMovementToStock(stockItem, movement);
+        if (!TryApplyMovementToStock(stockItem, movement))
+        {
+            return ServiceResult<InventoryMovementResponse>.Conflict("Stock quantity cannot become negative.");
+        }
         dbContext.InventoryMovements.Add(movement);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await AppendAuditAsync(
+            AuditActionType.InventoryAdjusted,
+            AuditEntityType.InventoryMovement,
+            movement.Id,
+            stockItem.CompoundId,
+            currentUserId,
+            $"Inventory adjustment recorded for {stockItem.Name}.",
+            AuditSeverity.High,
+            cancellationToken);
+        var saveFailure = await SaveChangesWithInventoryGuardAsync<InventoryMovementResponse>(cancellationToken);
+        if (saveFailure is not null)
+        {
+            return saveFailure;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
         return ServiceResult<InventoryMovementResponse>.Success(ToMovementResponse(movement, stockItem.Name));
     }
 
@@ -173,6 +206,18 @@ public sealed class ProcurementInventoryService(
         {
             return ServiceResult<InventoryMovementResponse>.BadRequest("Issued quantity must be greater than zero.");
         }
+
+        var reference = TrimOrNull(request.Reference);
+        if (reference is not null)
+        {
+            var existingMovement = await FindMovementByReferenceAsync(reference, cancellationToken);
+            if (existingMovement is not null)
+            {
+                return ServiceResult<InventoryMovementResponse>.Conflict("Inventory movement reference already exists.");
+            }
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         var stockItem = await dbContext.StockItems.FirstOrDefaultAsync(item => item.Id == stockItemId, cancellationToken);
         if (stockItem is null || !await CanAccessCompoundAsync(stockItem.CompoundId, cancellationToken))
@@ -203,11 +248,24 @@ public sealed class ProcurementInventoryService(
             request.Quantity,
             unitCost,
             currentUserId,
-            TrimOrNull(request.Notes));
+            TrimOrNull(request.Notes),
+            reference);
         movement.WorkOrderId = workOrder.Id;
 
-        ApplyMovementToStock(stockItem, movement);
+        if (!TryApplyMovementToStock(stockItem, movement))
+        {
+            return ServiceResult<InventoryMovementResponse>.Conflict("Stock quantity cannot become negative.");
+        }
         dbContext.InventoryMovements.Add(movement);
+        await AppendAuditAsync(
+            AuditActionType.InventoryIssued,
+            AuditEntityType.InventoryMovement,
+            movement.Id,
+            stockItem.CompoundId,
+            currentUserId,
+            $"Inventory issued to work order {workOrder.Title}.",
+            AuditSeverity.High,
+            cancellationToken);
 
         if (unitCost.HasValue)
         {
@@ -221,7 +279,13 @@ public sealed class ProcurementInventoryService(
             });
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        var saveFailure = await SaveChangesWithInventoryGuardAsync<InventoryMovementResponse>(cancellationToken);
+        if (saveFailure is not null)
+        {
+            return saveFailure;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
         return ServiceResult<InventoryMovementResponse>.Success(ToMovementResponse(movement, stockItem.Name));
     }
 
@@ -376,6 +440,14 @@ public sealed class ProcurementInventoryService(
             return ServiceResult<PurchaseOrderResponse>.BadRequest("Purchase order status is invalid.");
         }
 
+        if (request.Status is PurchaseOrderStatus.PartiallyReceived
+            or PurchaseOrderStatus.Received
+            or PurchaseOrderStatus.Cancelled
+            or PurchaseOrderStatus.Closed)
+        {
+            return ServiceResult<PurchaseOrderResponse>.BadRequest("Purchase order cannot be created in a terminal or receiving status.");
+        }
+
         if (!await CanAccessCompoundAsync(request.CompoundId, cancellationToken))
         {
             return ServiceResult<PurchaseOrderResponse>.Forbidden("Current user cannot access this compound.");
@@ -386,12 +458,22 @@ public sealed class ProcurementInventoryService(
             return ServiceResult<PurchaseOrderResponse>.BadRequest("At least one purchase order item is required.");
         }
 
+        if (request.Items.Any(item => item.QuantityOrdered <= 0 || item.UnitCost < 0))
+        {
+            return ServiceResult<PurchaseOrderResponse>.BadRequest("Purchase order item quantity and unit cost are invalid.");
+        }
+
         var vendor = await dbContext.ServiceVendors
             .AsNoTracking()
             .FirstOrDefaultAsync(item => item.Id == request.VendorId, cancellationToken);
         if (vendor is null || vendor.Status != VendorStatus.Active)
         {
             return ServiceResult<PurchaseOrderResponse>.BadRequest("Active vendor was not found.");
+        }
+
+        if (vendor.CompoundId != request.CompoundId)
+        {
+            return ServiceResult<PurchaseOrderResponse>.BadRequest("Vendor must belong to the selected compound.");
         }
 
         ProcurementRequest? procurementRequest = null;
@@ -439,7 +521,7 @@ public sealed class ProcurementInventoryService(
             Items = request.Items.Select(ToPurchaseOrderItem).ToList()
         };
 
-        if (procurementRequest is not null)
+        if (procurementRequest is not null && purchaseOrder.Status != PurchaseOrderStatus.Draft)
         {
             procurementRequest.Status = ProcurementRequestStatus.Ordered;
             procurementRequest.UpdatedAtUtc = DateTime.UtcNow;
@@ -448,6 +530,121 @@ public sealed class ProcurementInventoryService(
         dbContext.PurchaseOrders.Add(purchaseOrder);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ServiceResult<PurchaseOrderResponse>.Success(await LoadPurchaseOrderResponseAsync(purchaseOrder.Id, cancellationToken));
+    }
+
+    public async Task<ServiceResult<PurchaseOrderResponse>> ApprovePurchaseOrderAsync(
+        Guid purchaseOrderId,
+        Guid? currentUserId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!currentUserId.HasValue)
+        {
+            return ServiceResult<PurchaseOrderResponse>.BadRequest("Current user is invalid.");
+        }
+
+        var purchaseOrder = await GetPurchaseOrderDetailsQuery(asNoTracking: false)
+            .FirstOrDefaultAsync(item => item.Id == purchaseOrderId, cancellationToken);
+        if (purchaseOrder is null || !await CanAccessCompoundAsync(purchaseOrder.CompoundId, cancellationToken))
+        {
+            return ServiceResult<PurchaseOrderResponse>.NotFound("Purchase order was not found.");
+        }
+
+        if (purchaseOrder.Status == PurchaseOrderStatus.Cancelled)
+        {
+            return ServiceResult<PurchaseOrderResponse>.Conflict("Cancelled purchase orders cannot be approved.");
+        }
+
+        if (purchaseOrder.Status is PurchaseOrderStatus.Received or PurchaseOrderStatus.Closed)
+        {
+            return ServiceResult<PurchaseOrderResponse>.Conflict("Received or closed purchase orders cannot be approved.");
+        }
+
+        if (purchaseOrder.Status is PurchaseOrderStatus.Approved or PurchaseOrderStatus.Ordered)
+        {
+            return ServiceResult<PurchaseOrderResponse>.Success(ToPurchaseOrderResponse(purchaseOrder));
+        }
+
+        purchaseOrder.Status = PurchaseOrderStatus.Approved;
+        purchaseOrder.OrderedAtUtc ??= DateTime.UtcNow;
+        purchaseOrder.UpdatedAtUtc = DateTime.UtcNow;
+        await AppendAuditAsync(
+            AuditActionType.PurchaseOrderApproved,
+            AuditEntityType.PurchaseOrder,
+            purchaseOrder.Id,
+            purchaseOrder.CompoundId,
+            currentUserId,
+            $"Purchase order {purchaseOrder.OrderNumber} approved.",
+            AuditSeverity.High,
+            cancellationToken);
+
+        var saveFailure = await SaveChangesWithInventoryGuardAsync<PurchaseOrderResponse>(cancellationToken);
+        if (saveFailure is not null)
+        {
+            return saveFailure;
+        }
+
+        return ServiceResult<PurchaseOrderResponse>.Success(ToPurchaseOrderResponse(purchaseOrder));
+    }
+
+    public async Task<ServiceResult<PurchaseOrderResponse>> CancelPurchaseOrderAsync(
+        Guid purchaseOrderId,
+        Guid? currentUserId,
+        CancelPurchaseOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!currentUserId.HasValue)
+        {
+            return ServiceResult<PurchaseOrderResponse>.BadRequest("Current user is invalid.");
+        }
+
+        var reason = TrimOrNull(request.Reason);
+        if (reason is null)
+        {
+            return ServiceResult<PurchaseOrderResponse>.BadRequest("Cancellation reason is required.");
+        }
+
+        var purchaseOrder = await GetPurchaseOrderDetailsQuery(asNoTracking: false)
+            .FirstOrDefaultAsync(item => item.Id == purchaseOrderId, cancellationToken);
+        if (purchaseOrder is null || !await CanAccessCompoundAsync(purchaseOrder.CompoundId, cancellationToken))
+        {
+            return ServiceResult<PurchaseOrderResponse>.NotFound("Purchase order was not found.");
+        }
+
+        if (purchaseOrder.Status == PurchaseOrderStatus.Cancelled)
+        {
+            return ServiceResult<PurchaseOrderResponse>.Conflict("Purchase order is already cancelled.");
+        }
+
+        if (purchaseOrder.Status is PurchaseOrderStatus.Received or PurchaseOrderStatus.Closed)
+        {
+            return ServiceResult<PurchaseOrderResponse>.Conflict("Received or closed purchase orders cannot be cancelled.");
+        }
+
+        if (purchaseOrder.Items.Any(item => item.QuantityReceived > 0))
+        {
+            return ServiceResult<PurchaseOrderResponse>.Conflict("Purchase orders with received items cannot be cancelled.");
+        }
+
+        purchaseOrder.Status = PurchaseOrderStatus.Cancelled;
+        purchaseOrder.Notes = MergeNotes(purchaseOrder.Notes, reason);
+        purchaseOrder.UpdatedAtUtc = DateTime.UtcNow;
+        await AppendAuditAsync(
+            AuditActionType.PurchaseOrderCancelled,
+            AuditEntityType.PurchaseOrder,
+            purchaseOrder.Id,
+            purchaseOrder.CompoundId,
+            currentUserId,
+            $"Purchase order {purchaseOrder.OrderNumber} cancelled.",
+            AuditSeverity.High,
+            cancellationToken);
+
+        var saveFailure = await SaveChangesWithInventoryGuardAsync<PurchaseOrderResponse>(cancellationToken);
+        if (saveFailure is not null)
+        {
+            return saveFailure;
+        }
+
+        return ServiceResult<PurchaseOrderResponse>.Success(ToPurchaseOrderResponse(purchaseOrder));
     }
 
     public async Task<PagedResult<PurchaseOrderResponse>> SearchPurchaseOrdersAsync(
@@ -504,19 +701,35 @@ public sealed class ProcurementInventoryService(
             return ServiceResult<PurchaseOrderResponse>.BadRequest("Received quantity must be greater than zero.");
         }
 
-        var purchaseOrder = await dbContext.PurchaseOrders
-            .Include(order => order.Vendor)
-            .Include(order => order.Items)
-                .ThenInclude(item => item.StockItem)
+        var receiptReference = TrimOrNull(request.ReceiptReference);
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var purchaseOrder = await GetPurchaseOrderDetailsQuery(asNoTracking: false)
             .FirstOrDefaultAsync(order => order.Id == purchaseOrderId, cancellationToken);
         if (purchaseOrder is null || !await CanAccessCompoundAsync(purchaseOrder.CompoundId, cancellationToken))
         {
             return ServiceResult<PurchaseOrderResponse>.NotFound("Purchase order was not found.");
         }
 
+        if (purchaseOrder.Status is PurchaseOrderStatus.Draft)
+        {
+            return ServiceResult<PurchaseOrderResponse>.Conflict("Draft purchase orders cannot be received.");
+        }
+
+        if (purchaseOrder.Vendor.CompoundId != purchaseOrder.CompoundId)
+        {
+            return ServiceResult<PurchaseOrderResponse>.BadRequest("Purchase order vendor is not inside the purchase order compound.");
+        }
+
         if (purchaseOrder.Status is PurchaseOrderStatus.Cancelled or PurchaseOrderStatus.Closed)
         {
             return ServiceResult<PurchaseOrderResponse>.Conflict("Closed or cancelled purchase orders cannot be received.");
+        }
+
+        if (purchaseOrder.Status == PurchaseOrderStatus.Received)
+        {
+            return ServiceResult<PurchaseOrderResponse>.Conflict("Purchase order is already fully received.");
         }
 
         var item = purchaseOrder.Items.FirstOrDefault(line => line.Id == itemId);
@@ -530,7 +743,31 @@ public sealed class ProcurementInventoryService(
             return ServiceResult<PurchaseOrderResponse>.BadRequest("Purchase order item is not linked to a stock item.");
         }
 
+        if (item.StockItem.CompoundId != purchaseOrder.CompoundId)
+        {
+            return ServiceResult<PurchaseOrderResponse>.BadRequest("Purchase order item stock is not inside the purchase order compound.");
+        }
+
+        if (receiptReference is not null)
+        {
+            var duplicateReceipt = await dbContext.InventoryMovements
+                .AsNoTracking()
+                .AnyAsync(movement => movement.PurchaseOrderItemId == item.Id
+                    && movement.MovementType == InventoryMovementType.ReceivedFromPurchaseOrder
+                    && movement.Reference == receiptReference,
+                    cancellationToken);
+            if (duplicateReceipt)
+            {
+                return ServiceResult<PurchaseOrderResponse>.Success(ToPurchaseOrderResponse(purchaseOrder));
+            }
+        }
+
         var remaining = item.QuantityOrdered - item.QuantityReceived;
+        if (remaining <= 0)
+        {
+            return ServiceResult<PurchaseOrderResponse>.Conflict("Purchase order item has already been fully received.");
+        }
+
         if (request.QuantityReceived > remaining)
         {
             return ServiceResult<PurchaseOrderResponse>.Conflict("Received quantity cannot exceed remaining order quantity.");
@@ -542,7 +779,7 @@ public sealed class ProcurementInventoryService(
         item.StockItem.AverageUnitCost = item.UnitCost;
         item.StockItem.UpdatedAtUtc = DateTime.UtcNow;
 
-        dbContext.InventoryMovements.Add(new InventoryMovement
+        var movement = new InventoryMovement
         {
             CompoundId = purchaseOrder.CompoundId,
             StockItemId = item.StockItemId.Value,
@@ -551,16 +788,33 @@ public sealed class ProcurementInventoryService(
             Quantity = request.QuantityReceived,
             UnitCost = item.UnitCost,
             CreatedByUserId = currentUserId,
+            Reference = receiptReference,
             Notes = TrimOrNull(request.Notes),
             CreatedAtUtc = DateTime.UtcNow
-        });
+        };
+        dbContext.InventoryMovements.Add(movement);
 
         purchaseOrder.Status = purchaseOrder.Items.All(line => line.QuantityReceived >= line.QuantityOrdered)
             ? PurchaseOrderStatus.Received
             : PurchaseOrderStatus.PartiallyReceived;
         purchaseOrder.ReceivedAtUtc = purchaseOrder.Status == PurchaseOrderStatus.Received ? DateTime.UtcNow : purchaseOrder.ReceivedAtUtc;
         purchaseOrder.UpdatedAtUtc = DateTime.UtcNow;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await AppendAuditAsync(
+            AuditActionType.PurchaseOrderReceived,
+            AuditEntityType.PurchaseOrder,
+            purchaseOrder.Id,
+            purchaseOrder.CompoundId,
+            currentUserId,
+            $"Purchase order {purchaseOrder.OrderNumber} received stock movement {movement.Id:N}.",
+            AuditSeverity.High,
+            cancellationToken);
+        var saveFailure = await SaveChangesWithInventoryGuardAsync<PurchaseOrderResponse>(cancellationToken);
+        if (saveFailure is not null)
+        {
+            return saveFailure;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
         return ServiceResult<PurchaseOrderResponse>.Success(ToPurchaseOrderResponse(purchaseOrder));
     }
 
@@ -747,7 +1001,8 @@ public sealed class ProcurementInventoryService(
         decimal quantity,
         decimal? unitCost,
         Guid? currentUserId,
-        string? notes)
+        string? notes,
+        string? reference)
     {
         return new InventoryMovement
         {
@@ -757,28 +1012,37 @@ public sealed class ProcurementInventoryService(
             Quantity = quantity,
             UnitCost = unitCost,
             CreatedByUserId = currentUserId,
+            Reference = reference,
             Notes = notes,
             CreatedAtUtc = DateTime.UtcNow
         };
     }
 
-    private static void ApplyMovementToStock(StockItem stockItem, InventoryMovement movement)
+    private static bool TryApplyMovementToStock(StockItem stockItem, InventoryMovement movement)
     {
+        var newQuantity = stockItem.CurrentQuantity;
         if (movement.MovementType is InventoryMovementType.ReceivedFromPurchaseOrder or InventoryMovementType.AdjustmentIncrease)
         {
-            stockItem.CurrentQuantity += movement.Quantity;
+            newQuantity += movement.Quantity;
         }
         else
         {
-            stockItem.CurrentQuantity -= movement.Quantity;
+            newQuantity -= movement.Quantity;
         }
 
+        if (newQuantity < 0)
+        {
+            return false;
+        }
+
+        stockItem.CurrentQuantity = newQuantity;
         if (movement.UnitCost.HasValue)
         {
             stockItem.AverageUnitCost = movement.UnitCost;
         }
 
         stockItem.UpdatedAtUtc = DateTime.UtcNow;
+        return true;
     }
 
     private async Task<ProcurementRequestResponse> LoadProcurementRequestResponseAsync(
@@ -797,13 +1061,21 @@ public sealed class ProcurementInventoryService(
         Guid purchaseOrderId,
         CancellationToken cancellationToken)
     {
-        var purchaseOrder = await dbContext.PurchaseOrders
-            .AsNoTracking()
+        var purchaseOrder = await GetPurchaseOrderDetailsQuery(asNoTracking: true)
+            .SingleAsync(item => item.Id == purchaseOrderId, cancellationToken);
+        return ToPurchaseOrderResponse(purchaseOrder);
+    }
+
+    private IQueryable<PurchaseOrder> GetPurchaseOrderDetailsQuery(bool asNoTracking)
+    {
+        var query = dbContext.PurchaseOrders
             .Include(item => item.Vendor)
             .Include(item => item.Items)
                 .ThenInclude(item => item.StockItem)
-            .SingleAsync(item => item.Id == purchaseOrderId, cancellationToken);
-        return ToPurchaseOrderResponse(purchaseOrder);
+            .AsSplitQuery()
+            .AsQueryable();
+
+        return asNoTracking ? query.AsNoTracking() : query;
     }
 
     private static StockItemResponse ToStockItemResponse(StockItem item)
@@ -838,6 +1110,7 @@ public sealed class ProcurementInventoryService(
             movement.WorkOrderId,
             movement.PurchaseOrderItemId,
             movement.CreatedByUserId,
+            movement.Reference,
             movement.Notes,
             movement.CreatedAtUtc);
     }
@@ -908,6 +1181,60 @@ public sealed class ProcurementInventoryService(
             order.UpdatedAtUtc,
             items.Sum(item => item.LineTotal),
             items);
+    }
+
+    private async Task<InventoryMovement?> FindMovementByReferenceAsync(
+        string reference,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.InventoryMovements
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Reference == reference, cancellationToken);
+    }
+
+    private async Task<ServiceResult<T>?> SaveChangesWithInventoryGuardAsync<T>(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return ServiceResult<T>.Conflict("Inventory was updated by another operation. Reload and try again.");
+        }
+        catch (DbUpdateException)
+        {
+            return ServiceResult<T>.Conflict("Inventory operation conflicts with an existing movement or stock update.");
+        }
+    }
+
+    private async Task AppendAuditAsync(
+        AuditActionType actionType,
+        AuditEntityType entityType,
+        Guid entityId,
+        Guid compoundId,
+        Guid? currentUserId,
+        string description,
+        AuditSeverity severity,
+        CancellationToken cancellationToken)
+    {
+        if (auditLogService is null)
+        {
+            return;
+        }
+
+        await auditLogService.AppendEntryAsync(new AuditLogRecord(
+            CompoundId: compoundId,
+            ResidentProfileId: null,
+            ActorUserId: currentUserId,
+            ActorRole: null,
+            ActionType: actionType,
+            EntityType: entityType,
+            EntityId: entityId,
+            Severity: severity,
+            SourceModule: "Procurement",
+            Description: description), cancellationToken);
     }
 
     private async Task<IQueryable<T>> ApplyCurrentCompoundAccessAsync<T>(

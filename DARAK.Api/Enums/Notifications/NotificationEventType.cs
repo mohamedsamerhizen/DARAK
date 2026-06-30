@@ -34,5 +34,6 @@ public enum NotificationEventType
     UtilityOutageCreated = 30,
     UtilityOutageUpdated = 31,
     UtilityOutageResolved = 32,
-    UtilityOutageCancelled = 33
+    UtilityOutageCancelled = 33,
+    AnnouncementPublished = 34
 }

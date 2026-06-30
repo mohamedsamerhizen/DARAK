@@ -1,4 +1,5 @@
 using DARAK.Api.Data;
+using DARAK.Api.DTOs.Audit;
 using DARAK.Api.DTOs.Common;
 using DARAK.Api.DTOs.Operations;
 using DARAK.Api.Entities;
@@ -8,7 +9,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DARAK.Api.Services;
 
-public sealed class StaffMemberService(ApplicationDbContext dbContext)
+public sealed class StaffMemberService(
+    ApplicationDbContext dbContext,
+    ICompoundAccessService? compoundAccessService = null,
+    IAuditLogService? auditLogService = null)
     : IStaffMemberService
 {
     private const int MaxNameLength = 150;
@@ -23,6 +27,7 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
         CancellationToken cancellationToken = default)
     {
         var staffMembers = ApplyStaffFilters(dbContext.StaffMembers.AsNoTracking(), query);
+        staffMembers = await ApplyCurrentCompoundAccessAsync(staffMembers, cancellationToken);
         var totalCount = await staffMembers.CountAsync(cancellationToken);
         var items = await staffMembers
             .OrderBy(staffMember => staffMember.FullName)
@@ -30,6 +35,7 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
             .Take(query.PageSize)
             .Select(staffMember => new StaffMemberResponse(
                 staffMember.Id,
+                staffMember.CompoundId,
                 staffMember.FullName,
                 staffMember.PhoneNumber,
                 staffMember.Email,
@@ -54,6 +60,12 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
             .AsNoTracking()
             .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
 
+        if (staffMember is not null
+            && !await CanAccessCompoundAsync(staffMember.CompoundId, cancellationToken))
+        {
+            staffMember = null;
+        }
+
         return staffMember is null
             ? ServiceResult<StaffMemberResponse>.NotFound("Staff member was not found.")
             : ServiceResult<StaffMemberResponse>.Success(ToStaffMemberResponse(staffMember));
@@ -63,7 +75,18 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
         CreateStaffMemberRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (request.CompoundId == Guid.Empty)
+        {
+            return ServiceResult<StaffMemberResponse>.BadRequest("Compound id is required.");
+        }
+
+        if (!await CanAccessCompoundAsync(request.CompoundId, cancellationToken))
+        {
+            return ServiceResult<StaffMemberResponse>.Forbidden("Current user cannot access this compound.");
+        }
+
         var validation = await ValidateStaffMemberRequestAsync(
+            request.CompoundId,
             request.FullName,
             request.PhoneNumber,
             request.Email,
@@ -82,6 +105,7 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
 
         var staffMember = new StaffMember
         {
+            CompoundId = request.CompoundId,
             FullName = request.FullName.Trim(),
             PhoneNumber = request.PhoneNumber.Trim(),
             Email = TrimOrNull(request.Email),
@@ -94,6 +118,7 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
         };
 
         dbContext.StaffMembers.Add(staffMember);
+        await AppendAuditAsync(staffMember, "Staff member created.", cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ServiceResult<StaffMemberResponse>.Success(ToStaffMemberResponse(staffMember));
@@ -111,7 +136,23 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
             return ServiceResult<StaffMemberResponse>.NotFound("Staff member was not found.");
         }
 
+        if (!await CanAccessCompoundAsync(staffMember.CompoundId, cancellationToken))
+        {
+            return ServiceResult<StaffMemberResponse>.NotFound("Staff member was not found.");
+        }
+
+        if (request.CompoundId == Guid.Empty)
+        {
+            return ServiceResult<StaffMemberResponse>.BadRequest("Compound id is required.");
+        }
+
+        if (!await CanAccessCompoundAsync(request.CompoundId, cancellationToken))
+        {
+            return ServiceResult<StaffMemberResponse>.Forbidden("Current user cannot access this compound.");
+        }
+
         var validation = await ValidateStaffMemberRequestAsync(
+            request.CompoundId,
             request.FullName,
             request.PhoneNumber,
             request.Email,
@@ -128,6 +169,7 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
             return ToResult<StaffMemberResponse>(validation);
         }
 
+        staffMember.CompoundId = request.CompoundId;
         staffMember.FullName = request.FullName.Trim();
         staffMember.PhoneNumber = request.PhoneNumber.Trim();
         staffMember.Email = TrimOrNull(request.Email);
@@ -139,6 +181,7 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
         staffMember.UserId = request.UserId;
         staffMember.UpdatedAtUtc = DateTime.UtcNow;
 
+        await AppendAuditAsync(staffMember, "Staff member updated.", cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ServiceResult<StaffMemberResponse>.Success(ToStaffMemberResponse(staffMember));
@@ -161,8 +204,14 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
             return ServiceResult<StaffMemberResponse>.NotFound("Staff member was not found.");
         }
 
+        if (!await CanAccessCompoundAsync(staffMember.CompoundId, cancellationToken))
+        {
+            return ServiceResult<StaffMemberResponse>.NotFound("Staff member was not found.");
+        }
+
         staffMember.Status = status;
         staffMember.UpdatedAtUtc = DateTime.UtcNow;
+        await AppendAuditAsync(staffMember, $"Staff member status changed to {status}.", cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ServiceResult<StaffMemberResponse>.Success(ToStaffMemberResponse(staffMember));
@@ -175,6 +224,11 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
         if (request.StaffType.HasValue)
         {
             query = query.Where(item => item.StaffType == request.StaffType.Value);
+        }
+
+        if (request.CompoundId.HasValue)
+        {
+            query = query.Where(item => item.CompoundId == request.CompoundId.Value);
         }
 
         if (request.Status.HasValue)
@@ -196,6 +250,7 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
     }
 
     private async Task<ValidationFailure?> ValidateStaffMemberRequestAsync(
+        Guid compoundId,
         string fullName,
         string phoneNumber,
         string? email,
@@ -208,6 +263,14 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
         Guid? currentStaffMemberId,
         CancellationToken cancellationToken)
     {
+        var compoundExists = await dbContext.Compounds
+            .AsNoTracking()
+            .AnyAsync(compound => compound.Id == compoundId && compound.IsActive, cancellationToken);
+        if (!compoundExists)
+        {
+            return new ValidationFailure(ServiceResultStatus.NotFound, "Active compound was not found.");
+        }
+
         if (TrimOrNull(fullName) is null)
         {
             return new ValidationFailure(ServiceResultStatus.BadRequest, "Staff full name is required.");
@@ -274,6 +337,7 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
     {
         return new StaffMemberResponse(
             staffMember.Id,
+            staffMember.CompoundId,
             staffMember.FullName,
             staffMember.PhoneNumber,
             staffMember.Email,
@@ -285,6 +349,60 @@ public sealed class StaffMemberService(ApplicationDbContext dbContext)
             staffMember.UserId,
             staffMember.CreatedAtUtc,
             staffMember.UpdatedAtUtc);
+    }
+
+    private async Task<IQueryable<StaffMember>> ApplyCurrentCompoundAccessAsync(
+        IQueryable<StaffMember> query,
+        CancellationToken cancellationToken)
+    {
+        if (compoundAccessService is null)
+        {
+            return query;
+        }
+
+        var scope = await compoundAccessService.GetCurrentScopeAsync(cancellationToken);
+        if (!scope.IsAuthenticated)
+        {
+            return query.Where(_ => false);
+        }
+
+        if (scope.IsSuperAdmin)
+        {
+            return query;
+        }
+
+        return query.Where(item => scope.AllowedCompoundIds.Contains(item.CompoundId));
+    }
+
+    private async Task<bool> CanAccessCompoundAsync(
+        Guid compoundId,
+        CancellationToken cancellationToken)
+    {
+        return compoundAccessService is null
+            || await compoundAccessService.CanCurrentUserAccessCompoundAsync(compoundId, cancellationToken);
+    }
+
+    private async Task AppendAuditAsync(
+        StaffMember staffMember,
+        string description,
+        CancellationToken cancellationToken)
+    {
+        if (auditLogService is null)
+        {
+            return;
+        }
+
+        await auditLogService.AppendEntryAsync(new AuditLogRecord(
+            CompoundId: staffMember.CompoundId,
+            ResidentProfileId: null,
+            ActorUserId: null,
+            ActorRole: null,
+            ActionType: AuditActionType.StaffMemberChanged,
+            EntityType: AuditEntityType.StaffMember,
+            EntityId: staffMember.Id,
+            Severity: AuditSeverity.Medium,
+            SourceModule: "Operations",
+            Description: description), cancellationToken);
     }
 
     private static string? TrimOrNull(string? value)

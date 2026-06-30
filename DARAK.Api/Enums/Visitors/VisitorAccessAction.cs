@@ -4,5 +4,7 @@ public enum VisitorAccessAction
 {
     CheckIn,
     CheckOut,
-    Denied
+    Denied,
+    Verified,
+    CredentialFailed
 }

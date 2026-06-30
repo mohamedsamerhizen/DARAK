@@ -53,6 +53,8 @@ public sealed class WorkOrder
 
     public MaintenanceAsset? MaintenanceAsset { get; set; }
 
+    public string? PreventiveMaintenanceOccurrenceKey { get; set; }
+
     public Guid? MaintenanceSlaPolicyId { get; set; }
 
     public MaintenanceSlaPolicy? MaintenanceSlaPolicy { get; set; }
@@ -66,6 +68,12 @@ public sealed class WorkOrder
     public DateTime? FirstRespondedAtUtc { get; set; }
 
     public DateTime? SlaBreachedAtUtc { get; set; }
+
+    public DateTime? SlaEscalatedAtUtc { get; set; }
+
+    public DateTime? LastSlaEscalatedAtUtc { get; set; }
+
+    public int SlaEscalationCount { get; set; }
 
     public string? SlaBreachReason { get; set; }
 

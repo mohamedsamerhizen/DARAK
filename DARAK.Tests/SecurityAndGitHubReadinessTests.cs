@@ -29,7 +29,7 @@ public sealed class SecurityAndGitHubReadinessTests
     }
 
     [Fact]
-    public void Phase14_StartupSecurityValidator_ShouldRejectDevelopmentSuperAdminPlaceholders()
+    public void Phase14_StartupSecurityValidator_ShouldRejectEnabledBootstrapAdminPlaceholders()
     {
         var configuration = BuildConfiguration(new Dictionary<string, string?>
         {
@@ -39,15 +39,125 @@ public sealed class SecurityAndGitHubReadinessTests
             ["Jwt:SecretKey"] = "DARAK_TESTS_SECRET_KEY_1234567890",
             ["Jwt:AccessTokenMinutes"] = "15",
             ["Jwt:RefreshTokenDays"] = "7",
-            ["DevelopmentSuperAdmin:Email"] = "YOUR_SUPERADMIN_EMAIL_HERE",
-            ["DevelopmentSuperAdmin:Password"] = "YOUR_SUPERADMIN_PASSWORD_HERE"
+            ["BootstrapAdmin:Enabled"] = "true",
+            ["BootstrapAdmin:Email"] = "YOUR_SUPERADMIN_EMAIL_HERE",
+            ["BootstrapAdmin:Password"] = "YOUR_SUPERADMIN_PASSWORD_HERE"
         });
 
         var act = () => StartupSecurityValidator.Validate(configuration, new TestHostEnvironment(Environments.Development));
 
         act.Should()
             .Throw<InvalidOperationException>()
-            .WithMessage("*Development SuperAdmin email*placeholder*");
+            .WithMessage("*BootstrapAdmin email*placeholder*");
+    }
+
+    [Fact]
+    public void Phase02_StartupSecurityValidator_ShouldRejectProductionRegistrationAutoConfirm()
+    {
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Server=localhost,1433;Database=DARAKDb;TrustServerCertificate=True;",
+            ["Jwt:Issuer"] = "DARAK.Tests",
+            ["Jwt:Audience"] = "DARAK.Tests",
+            ["Jwt:SecretKey"] = "DARAK_TESTS_SECRET_KEY_1234567890",
+            ["Jwt:AccessTokenMinutes"] = "15",
+            ["Jwt:RefreshTokenDays"] = "7",
+            ["Registration:EnablePublicRegistration"] = "true",
+            ["Registration:AutoConfirmRegisteredUsers"] = "true"
+        });
+
+        var act = () => StartupSecurityValidator.Validate(configuration, new TestHostEnvironment("Production"));
+
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("*AutoConfirmRegisteredUsers*Production*");
+    }
+
+    [Fact]
+    public void Phase02_StartupSecurityValidator_ShouldRejectUnsafeBootstrapPassword()
+    {
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Server=localhost,1433;Database=DARAKDb;TrustServerCertificate=True;",
+            ["Jwt:Issuer"] = "DARAK.Tests",
+            ["Jwt:Audience"] = "DARAK.Tests",
+            ["Jwt:SecretKey"] = "DARAK_TESTS_SECRET_KEY_1234567890",
+            ["Jwt:AccessTokenMinutes"] = "15",
+            ["Jwt:RefreshTokenDays"] = "7",
+            ["BootstrapAdmin:Enabled"] = "true",
+            ["BootstrapAdmin:Email"] = "superadmin@darak.test",
+            ["BootstrapAdmin:Password"] = "weak"
+        });
+
+        var act = () => StartupSecurityValidator.Validate(configuration, new TestHostEnvironment("Production"));
+
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("*BootstrapAdmin password*at least 12 characters*");
+    }
+
+    [Fact]
+    public void Phase02_StartupSecurityValidator_ShouldAllowTestingWithTestSafeConfig()
+    {
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Server=(local);Database=DARAK_TESTS;TrustServerCertificate=True;",
+            ["Jwt:Issuer"] = "DARAK.Tests",
+            ["Jwt:Audience"] = "DARAK.Tests",
+            ["Jwt:SecretKey"] = "TEST_SECRET",
+            ["Jwt:AccessTokenMinutes"] = "15",
+            ["Jwt:RefreshTokenDays"] = "7",
+            ["Registration:EnablePublicRegistration"] = "true",
+            ["Registration:AutoConfirmRegisteredUsers"] = "true",
+            ["BootstrapAdmin:Enabled"] = "false"
+        });
+
+        var act = () => StartupSecurityValidator.Validate(configuration, new TestHostEnvironment("Testing"));
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Phase02_StartupSecurityValidator_ShouldAllowDevelopmentWithSafeLocalConfig()
+    {
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Server=localhost,1433;Database=DARAKDb;TrustServerCertificate=True;",
+            ["Jwt:Issuer"] = "DARAK.Tests",
+            ["Jwt:Audience"] = "DARAK.Tests",
+            ["Jwt:SecretKey"] = "DARAK_TESTS_SECRET_KEY_1234567890",
+            ["Jwt:AccessTokenMinutes"] = "15",
+            ["Jwt:RefreshTokenDays"] = "7",
+            ["Registration:EnablePublicRegistration"] = "true",
+            ["Registration:AutoConfirmRegisteredUsers"] = "true",
+            ["BootstrapAdmin:Enabled"] = "false"
+        });
+
+        var act = () => StartupSecurityValidator.Validate(configuration, new TestHostEnvironment(Environments.Development));
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Phase02_StartupSecurityValidator_ShouldRejectAutoConfirmWhenPublicRegistrationDisabled()
+    {
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Server=localhost,1433;Database=DARAKDb;TrustServerCertificate=True;",
+            ["Jwt:Issuer"] = "DARAK.Tests",
+            ["Jwt:Audience"] = "DARAK.Tests",
+            ["Jwt:SecretKey"] = "DARAK_TESTS_SECRET_KEY_1234567890",
+            ["Jwt:AccessTokenMinutes"] = "15",
+            ["Jwt:RefreshTokenDays"] = "7",
+            ["Registration:EnablePublicRegistration"] = "false",
+            ["Registration:AutoConfirmRegisteredUsers"] = "true"
+        });
+
+        var act = () => StartupSecurityValidator.Validate(configuration, new TestHostEnvironment(Environments.Development));
+
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("*AutoConfirmRegisteredUsers*EnablePublicRegistration*false*");
     }
 
     [Fact]
@@ -110,7 +220,9 @@ public sealed class SecurityAndGitHubReadinessTests
 
         compose.Should().Contain("${SQLSERVER_SA_PASSWORD}");
         compose.Should().Contain("${JWT_SECRET_KEY}");
-        compose.Should().Contain("${DEVELOPMENT_SUPERADMIN_PASSWORD}");
+        compose.Should().Contain("${REGISTRATION_ENABLE_PUBLIC_REGISTRATION:-true}");
+        compose.Should().Contain("${REGISTRATION_AUTO_CONFIRM_REGISTERED_USERS:-true}");
+        compose.Should().Contain("${BOOTSTRAP_ADMIN_PASSWORD:-}");
         compose.Should().Contain("${NOTIFICATIONS_EMAIL_PASSWORD:-}");
         compose.Should().Contain("${NOTIFICATIONS_SMS_API_KEY:-}");
     }
@@ -139,9 +251,11 @@ public sealed class SecurityAndGitHubReadinessTests
 
         appSettings.Should().Contain("YOUR_SQLSERVER_PASSWORD_HERE");
         appSettings.Should().Contain("YOUR_JWT_SECRET_KEY_HERE");
-        developmentSettings.Should().Contain("YOUR_SUPERADMIN_PASSWORD_HERE");
+        developmentSettings.Should().Contain("\"BootstrapAdmin\"");
+        developmentSettings.Should().NotContain("YOUR_SUPERADMIN_PASSWORD_HERE");
         envExample.Should().Contain("YOUR_SQLSERVER_PASSWORD_HERE");
         envExample.Should().Contain("YOUR_JWT_SECRET_KEY_HERE");
+        envExample.Should().Contain("YOUR_SUPERADMIN_PASSWORD_HERE");
         envExample.Should().Contain("YOUR_SMS_PROVIDER_API_KEY_HERE");
     }
 

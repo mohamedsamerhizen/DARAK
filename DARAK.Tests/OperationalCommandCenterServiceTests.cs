@@ -3,6 +3,7 @@ using DARAK.Api.DTOs.Common;
 using DARAK.Api.DTOs.Operational;
 using DARAK.Api.Entities;
 using DARAK.Api.Enums;
+using DARAK.Api.Identity;
 using DARAK.Api.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
@@ -199,6 +200,46 @@ public sealed class OperationalCommandCenterServiceTests
     }
 
     [Fact]
+    public async Task Phase8_CreateTaskAsync_RejectsAssignedUserOutsideCompound()
+    {
+        await using var dbContext = TestDb.Create();
+        var allowedCompound = await AddCompoundAsync(dbContext, "OP-P8-A");
+        var blockedCompound = await AddCompoundAsync(dbContext, "OP-P8-B");
+        var assignedUser = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = "assigned.outside@darak.test",
+            Email = "assigned.outside@darak.test",
+            FullName = "Assigned Outside"
+        };
+        dbContext.Users.Add(assignedUser);
+        dbContext.UserCompoundAssignments.Add(new UserCompoundAssignment
+        {
+            UserId = assignedUser.Id,
+            CompoundId = blockedCompound.Id,
+            Role = UserRole.CompoundAdmin,
+            IsActive = true
+        });
+        await dbContext.SaveChangesAsync();
+        var service = CreateService(dbContext, allowedCompound.Id);
+
+        var result = await service.CreateTaskAsync(Guid.NewGuid(), new CreateOperationalTaskRequest
+        {
+            CompoundId = allowedCompound.Id,
+            TaskType = OperationalTaskType.General,
+            Priority = OperationalTaskPriority.Normal,
+            Title = "Wrong compound assignment",
+            Description = "Should be rejected.",
+            AssignedToUserId = assignedUser.Id,
+            DueAtUtc = DateTime.UtcNow.AddHours(1)
+        });
+
+        result.Status.Should().Be(ServiceResultStatus.BadRequest);
+        result.Message.Should().Contain("Assigned user");
+        dbContext.OperationalTasks.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task CompleteTaskAsync_CompletesOpenTaskAndWritesAuditEntry()
     {
         await using var dbContext = TestDb.Create();
@@ -256,7 +297,12 @@ public sealed class OperationalCommandCenterServiceTests
     {
         await using var dbContext = TestDb.Create();
         var compound = await AddCompoundAsync(dbContext, "OP18-SP");
-        var staff = new StaffMember { FullName = "Senior Technician", PhoneNumber = "+9647700001111" };
+        var staff = new StaffMember
+        {
+            CompoundId = compound.Id,
+            FullName = "Senior Technician",
+            PhoneNumber = "+9647700001111"
+        };
         var completedOrder = new WorkOrder
         {
             CompoundId = compound.Id,

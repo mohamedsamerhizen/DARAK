@@ -113,6 +113,7 @@ public sealed class AccessControlPack5ProTests
         });
         var vendor = new ServiceVendor
         {
+            CompoundId = compound.Id,
             Name = "Pack5 Contractor",
             PhoneNumber = "07700000001",
             ServiceType = VendorServiceType.Maintenance,

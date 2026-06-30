@@ -34,6 +34,8 @@ If a report is exported as CSV or another machine-readable format:
 - Apply the same filters and scoping as the API query.
 - Do not export secrets, password hashes, refresh tokens, or access codes.
 - Mask sensitive visitor access codes.
+- Reject export filenames or requested paths that contain traversal, path separators, absolute roots, or drive roots.
+- Store completed export metadata under the controlled report export root instead of trusting a caller-provided path.
 - Include generated timestamp and query scope in export metadata when practical.
 - Avoid storing generated files permanently unless a retention policy exists.
 
@@ -47,7 +49,7 @@ Queued -> Cancelled
 Processing -> Failed
 ```
 
-Phase 9 treats this as governance unless the project already has an export job implementation available.
+The backend includes an export job implementation and stores completion metadata with sanitized filenames and controlled relative paths.
 
 ## Commercial Review Evidence
 

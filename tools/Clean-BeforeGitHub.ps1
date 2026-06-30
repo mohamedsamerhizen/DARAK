@@ -55,12 +55,16 @@ Get-ChildItem -Path $root -Directory -Recurse -Include logs -ErrorAction Silentl
 Get-ChildItem -Path $root -Directory -Force -ErrorAction SilentlyContinue | Where-Object {
     $_.Name -like "_phase*" -or
     $_.Name -like "_backup_phase*" -or
+    $_.Name -like "_backup_batch*" -or
+    $_.Name -like "_artifact-backup-*" -or
     $_.Name -like "_ef_repair_backup_*" -or
     $_.Name -like "_remediation*" -or
-    $_.Name -like "DARAK-REMEDIATION-*"
+    $_.Name -like "DARAK-REMEDIATION-*" -or
+    $_.Name -like "DARAK-BATCH-*"
 } | Remove-Item -Recurse -Force
 
 Remove-IfExists (Join-Path $root "DARAK.Api\App_Data\Uploads")
+Remove-IfExists (Join-Path $root "DARAK.Api\App_Data\Exports")
 Remove-IfExists (Join-Path $root "DARAK.Api\logs")
 
 # Temporary review files created during local development/review.
@@ -76,6 +80,7 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
     git rm --cached *.zip 2>$null | Out-Null
     git rm -r --cached .\DARAK.Api\bin .\DARAK.Api\obj .\DARAK.Tests\bin .\DARAK.Tests\obj 2>$null | Out-Null
     git rm -r --cached .\DARAK.Api\App_Data\Uploads 2>$null | Out-Null
+    git rm -r --cached .\DARAK.Api\App_Data\Exports 2>$null | Out-Null
 }
 
 $blockedFiles = @(Get-ChildItem -Path $root -File -Recurse -Force -ErrorAction SilentlyContinue | Where-Object {
@@ -88,7 +93,8 @@ $blockedFiles = @(Get-ChildItem -Path $root -File -Recurse -Force -ErrorAction S
         $_.FullName -match '[\\/]bin[\\/]' -or
         $_.FullName -match '[\\/]obj[\\/]' -or
         $_.FullName -match '[\\/]TestResults[\\/]' -or
-        $_.FullName -match '[\\/]logs[\\/]'
+        $_.FullName -match '[\\/]logs[\\/]' -or
+        $_.FullName -match '[\\/]App_Data[\\/]Exports[\\/]'
 
     -not $isSourceControl -and -not $isPatchPackage -and $isBlocked
 })

@@ -1,4 +1,4 @@
-name: DARAK .NET Build and Test
+name: DARAK Backend CI
 
 on:
   push:
@@ -14,9 +14,13 @@ on:
 permissions:
   contents: read
 
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
 jobs:
   build-test:
-    name: Build and test DARAK
+    name: Release build and tests
     runs-on: ubuntu-latest
 
     steps:
@@ -35,4 +39,67 @@ jobs:
         run: dotnet build ./DARAK.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test ./DARAK.sln --configuration Release --no-build --logger "trx;LogFileName=darak-tests.trx"
+        run: dotnet test ./DARAK.sln --configuration Release --no-build --logger "trx;LogFileName=darak-release-tests.trx" --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: darak-release-test-results
+          path: TestResults/**/*.trx
+          if-no-files-found: warn
+
+  sql-integration:
+    name: SQL Server integration tests
+    runs-on: ubuntu-latest
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: Darak_ci_SQL_2026!
+          SA_PASSWORD: Darak_ci_SQL_2026!
+        ports:
+          - 1433:1433
+
+    env:
+      DARAK_SQLSERVER_TEST_CONNECTION: Server=localhost,1433;User Id=sa;Password=Darak_ci_SQL_2026!;TrustServerCertificate=True;Encrypt=True
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore ./DARAK.sln
+
+      - name: Build
+        run: dotnet build ./DARAK.sln --configuration Release --no-restore
+
+      - name: Wait for SQL Server port
+        shell: bash
+        run: |
+          for i in {1..60}; do
+            if (echo > /dev/tcp/127.0.0.1/1433) >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "SQL Server did not open port 1433 in time."
+          exit 1
+
+      - name: Run SQL integration tests
+        run: dotnet test ./DARAK.Tests/DARAK.Tests.csproj --configuration Release --no-build --filter "FullyQualifiedName~SqlServerIntegrationReadinessTests" --logger "trx;LogFileName=darak-sql-tests.trx" --results-directory TestResults
+
+      - name: Upload SQL test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: darak-sql-test-results
+          path: TestResults/**/*.trx
+          if-no-files-found: warn

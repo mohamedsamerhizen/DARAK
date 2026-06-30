@@ -25,6 +25,9 @@ public sealed class CreateInstallmentSaleContractRequest
     [Range(0, double.MaxValue)]
     public decimal DownPaymentAmount { get; init; }
 
+    [MaxLength(120)]
+    public string? DownPaymentIdempotencyKey { get; init; }
+
     [Range(1, 600)]
     public int InstallmentCount { get; init; }
 

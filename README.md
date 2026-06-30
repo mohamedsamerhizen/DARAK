@@ -1,556 +1,173 @@
 # DARAK Backend
 
-[![.NET CI](https://github.com/mohamedsamerhizen/DARAK/actions/workflows/dotnet.yml/badge.svg)](https://github.com/mohamedsamerhizen/DARAK/actions/workflows/dotnet.yml)
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4)
 ![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-Web%20API-512BD4)
 ![EF Core](https://img.shields.io/badge/EF%20Core-SQL%20Server-blue)
-![Status](https://img.shields.io/badge/Status-20--Pass%20Hardened-success)
-![Backend](https://img.shields.io/badge/Scope-Backend--Only-orange)
+![Scope](https://img.shields.io/badge/Scope-Backend--Only-orange)
+![Status](https://img.shields.io/badge/Status-GitHub--Ready-green)
 
-**DARAK** is a commercial-grade ASP.NET Core backend for residential compound, property, utility, payment, visitor, maintenance, communication, approval, audit, reporting, and operational governanceEF%20Core-SQL%20Server-blue)
-![Status](https://img.shields.io/badge/Status-20--Pass%20Hardened-success)
-![Backend](https://img.shields.io/badge/Scope-Backend--Only-orange)
+DARAK is a backend-only ASP.NET Core Web API for residential compound and property-management operations. It models authentication, compound scoping, residents, occupancy, billing, payments, rent, property sales, visitor access, guards, maintenance, staff, vendors, procurement, inventory, documents, approvals, audit, reports, announcements, outages, and notification outbox workflows.
 
-**DARAK** is a commercial-grade ASP.NET Core backend for residential compound, property, utility,.
+This repository does not include a frontend/mobile app, real payment provider integration, real SMS/email provider setup, production hosting, or production operations ownership.
 
-It is designed as a serious backend foundation for residential compounds, gated communities, real-estate operators, property-management companies, and future SaaS expansion.
+## Verification
 
----
+Use `docs/Verification-Evidence.md` as the source of truth for the exact source tree being published.
 
-## Overview
-
-DARAK is not a simple CRUD application.
-
-It is a backend system built around real operational workflows inside a residential compound:
-
-* Residents live in units.
-* Units belong to buildings, floors, compounds, and ownership/rent contexts.
-* Residents pay utilities, rent, installments, fines, and service-related charges.
-* Guards handle visitor access.
-* Administrators manage finance, complaints, documents, approvals, audits, reports, and operational risk.
-* Maintenance teams and vendors handle work orders, assets, preventive maintenance, and reliability rules.
-* The system enforces authorization boundaries, compound ownership, resident scoping, and release readiness gates.
-
-The project has gone through a structured **20-pass hardening and remediation process** before this release.
-
----
-
-## Current Verification Status
-
-Latest verified local status:
-
-```text
-Build:                    Passed
-Tests:                    617 passed / 0 failed
-Commercial Readiness:     Passed
-Final Hardening Gate:     Passed
-Final Migration Status:   No migration required
-```
-
-The project was validated after a 20-pass remediation track covering:
-
-```text
-Repository hygiene
-Startup configuration
-Authentication and JWT
-Authorization boundaries
-Compound isolation
-API surface consistency
-DTO validation
-EF entity integrity
-Migration governance
-Billing and payments
-Financial governance
-Contracts and installments
-Resident portal safety
-Resident lifecycle workflows
-Maintenance and asset reliability
-Staff and vendor governance
-Visitor and guard access control
-Communications and notifications
-Audit, reports, approvals, and documents
-Commercial readiness and GitHub preparation
-```
-
----
-
-## Tech Stack
-
-* **.NET 10**
-* **ASP.NET Core Web API**
-* **Entity Framework Core**
-* **SQL Server**
-* **ASP.NET Core Identity**
-* **JWT authentication**
-* **Refresh token workflow**
-* **Serilog**
-* **Swagger / OpenAPI in Development**
-* **xUnit test project**
-* **GitHub Actions CI**
-* **Docker Compose support**
-
----
-
-## Repository Structure
-
-```text
-DARAK/
-├── DARAK.Api/                  # Main ASP.NET Core Web API
-├── DARAK.Tests/                # Automated tests and regression checks
-├── docs/                       # Commercial, security, release, and operations documentation
-├── tools/                      # Cleanup, validation, and release gate scripts
-├── .github/workflows/          # GitHub Actions CI workflow
-├── docker-compose.yml          # Local Docker setup
-├── .env.example                # Safe environment variable template
-├── .gitignore                  # Source-control protection rules
-├── .dockerignore               # Docker build exclusion rules
-└── DARAK.sln                   # Solution file
-```
-
----
-
-## Main Modules
-
-### Authentication and Identity
-
-DARAK includes backend support for:
-
-* Login.
-* JWT access tokens.
-* Refresh tokens.
-* Role-based access control.
-* Startup configuration validation.
-* Development SuperAdmin seeding through environment configuration.
-* Server-side authorization boundaries.
-
-Supported access models include:
-
-* SuperAdmin
-* CompoundAdmin
-* Accountant
-* Guard
-* MaintenanceStaff
-* Resident
-
----
-
-### Compound and Property Structure
-
-DARAK models the physical and administrative structure of residential communities:
-
-* Compounds
-* Buildings
-* Floors
-* Units
-* Parking spaces
-* Unit relationships
-* Compound-level operational isolation
-
-The backend is built around the idea that data access must respect compound ownership and operational boundaries.
-
----
-
-### Residents and Occupancy
-
-Resident-related workflows include:
-
-* Resident profiles
-* Occupancy records
-* Family members
-* Emergency contacts
-* Resident portal access
-* Resident account summaries
-* Move-in and move-out lifecycle rules
-* Unit lifecycle safety checks
-
-Resident-facing access is designed to be derived from the authenticated user rather than arbitrary client-provided resident IDs.
-
----
-
-### Billing and Payments
-
-DARAK supports financial operations for:
-
-* Billing cycles
-* Utility bills
-* Utility bill lines
-* Resident account balances
-* Payments
-* Payment attempts
-* Receipts
-* Reconciliation safety
-* Payment governance
-* Fines and outstanding charges
-
-The payment layer is prepared for real payment-provider integration while keeping mock gateway behavior controlled and disabled by default unless explicitly enabled.
-
----
-
-### Rent, Ownership, and Installments
-
-DARAK includes contract and property-finance workflows:
-
-* Rent contracts
-* Rent invoices
-* Ownership sales
-* Installment plans
-* Installment rescheduling governance
-* Contract validation rules
-* Date consistency validation
-* Overpayment prevention
-* Financial source checks
-
----
-
-### Visitors and Guard Access Control
-
-The system includes guard-facing visitor workflows:
-
-* Visitor passes
-* Access code verification
-* Visitor status handling
-* Guard access endpoints
-* Pending visitor protection
-* Masked sensitive access-code details
-* Check-in/check-out workflow foundation
-
-The access-control layer distinguishes between visible visitor records and actual gate clearance.
-
----
-
-### Maintenance and Asset Reliability
-
-DARAK includes backend workflows for property operations:
-
-* Maintenance assets
-* Preventive maintenance plans
-* Work orders
-* Staff/vendor assignment rules
-* Asset location hierarchy validation
-* Preventive due-date validation
-* Reliability and maintenance governance checks
-
-The module is prepared for future expansion into SLA escalation, vendor performance, and maintenance intelligence.
-
----
-
-### Staff, Vendors, and Operations
-
-Operational administration includes:
-
-* Staff records
-* Vendor records
-* Assignment governance
-* Sensitive staff data protection
-* User-to-staff uniqueness validation
-* Foundation for workforce and vendor operations
-
-Sensitive internal staff fields are protected from broad search/list exposure.
-
----
-
-### Complaints, Violations, Fines, and Disputes
-
-DARAK supports resident-facing and admin-facing governance workflows:
-
-* Complaints
-* Violations
-* Violation fines
-* Dispute initiation
-* Support conversation links
-* Resident dashboard financial inclusion
-* Admin operational review flows
-
-Financial disputes and objections are designed to connect into communication and support workflows instead of becoming isolated records without operational follow-up.
-
----
-
-### Communications and Notifications
-
-Communication workflows include:
-
-* Admin-resident conversations
-* Conversation assignment
-* Resident-linked notifications
-* Manual notification creation
-* Compound-aware notification scoping
-* Notification outbox governance
-* Recipient validation
-* Announcement-style communication foundation
-
-Notification handling includes safeguards against linking a resident profile to an unrelated user account.
-
----
-
-### Documents, Approvals, Audit, and Reports
-
-DARAK includes commercial governance features:
-
-* Document governance
-* Admin approvals
-* Audit logs
-* Timeline and traceability foundations
-* Saved reports
-* Export jobs
-* JSON filter validation
-* Commercial reporting controls
-
-Saved report and export filter JSON is validated, normalized, and protected against silent truncation.
-
----
-
-## Commercial Hardening Highlights
-
-The project includes hardening work across several important areas:
-
-* No generated `bin`, `obj`, `TestResults`, or `coverage` folders should be committed.
-* Local secrets are excluded from source control.
-* `.env.example` is safe for public source review.
-* Startup rejects unsafe placeholder secrets.
-* Mock payment gateway endpoints are controlled by configuration.
-* Resident access is scoped server-side.
-* Linked entities in conversations are validated against resident and compound ownership.
-* Financial collection and reconciliation workflows include safety validation.
-* DTO validation and API error formatting are normalized.
-* Release scripts block unsafe handover artifacts.
-* GitHub Actions CI is included for restore/build/test.
-
----
-
-## Configuration
-
-Do not commit real secrets.
-
-For local Docker-based development, copy:
-
-```powershell
-copy .env.example .env
-```
-
-Required configuration values include:
-
-```text
-ConnectionStrings__DefaultConnection
-Jwt__Issuer
-Jwt__Audience
-Jwt__SecretKey
-Jwt__AccessTokenMinutes
-Jwt__RefreshTokenDays
-DevelopmentSuperAdmin__Email
-DevelopmentSuperAdmin__Password
-DevelopmentSuperAdmin__FullName
-```
-
-Optional provider configuration exists for future notification delivery integrations.
-
----
-
-## Run Locally
-
-### Requirements
-
-* .NET 10 SDK
-* Docker Desktop, if using SQL Server through Docker
-* SQL Server or SQL Server container
-* EF Core CLI tools, if applying migrations manually
-
-### Restore and Build
+Minimum local gate:
 
 ```powershell
 dotnet restore .\DARAK.sln
-dotnet build .\DARAK.sln
+dotnet build .\DARAK.sln --configuration Release --no-restore
+dotnet test .\DARAK.sln --configuration Release --no-build
 ```
 
-### Apply Database Migrations
+When SQL Server is available:
 
 ```powershell
 dotnet ef database update `
   --project .\DARAK.Api\DARAK.Api.csproj `
   --startup-project .\DARAK.Api\DARAK.Api.csproj
+
+dotnet ef migrations has-pending-model-changes `
+  --project .\DARAK.Api\DARAK.Api.csproj `
+  --startup-project .\DARAK.Api\DARAK.Api.csproj
 ```
 
-### Run the API
+The test suite also includes optional SQL Server integration tests. Set `DARAK_SQLSERVER_TEST_CONNECTION` to run them against a temporary SQL database.
+
+## Tech Stack
+
+- .NET 10
+- ASP.NET Core Web API
+- Entity Framework Core and SQL Server migrations
+- ASP.NET Core Identity
+- JWT authentication and refresh tokens
+- Serilog
+- Swagger/OpenAPI in Development
+- xUnit and FluentAssertions
+- Docker Compose
+- GitHub Actions
+
+## Repository Structure
+
+```text
+DARAK/
+|-- DARAK.Api/                  # ASP.NET Core Web API
+|-- DARAK.Tests/                # Unit, service, boundary, readiness, and optional SQL tests
+|-- docs/                       # Verification, security, testing, diagrams, and handoff docs
+|-- tools/                      # Cleanup, validation, and packaging scripts
+|-- .github/workflows/          # GitHub Actions CI
+|-- docker-compose.yml          # Local SQL/API compose setup
+|-- docker-compose.production.yml
+|-- .env.example                # Safe local template
+|-- .env.production.example     # Safe production template
+`-- DARAK.sln
+```
+
+## Main Capabilities
+
+- Identity: login, JWTs, refresh-token rotation, role boundaries, public registration control, first-SuperAdmin bootstrap.
+- Structure: compounds, buildings, floors, units, parking, and compound assignment scope.
+- Residents: profiles, family members, emergency contacts, active occupancies, lifecycle workflows.
+- Finance: utility bills, bill lines, payments, attempts, receipts, ledger entries, rent contracts, sale installments, disputes, collections.
+- Access: visitor passes, guard logs, contractor permits, hashed access credentials.
+- Operations: maintenance requests, assets, work orders, SLA tracking, staff, vendors, procurement, inventory, purchase orders.
+- Communications: announcements, utility outages, resident notification preferences, in-app notifications, notification outbox retry/backoff.
+- Governance: documents, document access logs, approvals, audit logs, saved reports, export jobs.
+
+## Local Setup
+
+1. Install the .NET 10 SDK and Docker Desktop or SQL Server.
+2. Copy the safe environment template:
+
+```powershell
+Copy-Item .\.env.example .\.env
+```
+
+3. Edit `.env` locally. Do not commit `.env`.
+4. Start SQL Server:
+
+```powershell
+docker compose up -d sqlserver
+```
+
+5. Restore, build, migrate, and test:
+
+```powershell
+dotnet restore .\DARAK.sln
+dotnet build .\DARAK.sln --configuration Release --no-restore
+dotnet ef database update `
+  --project .\DARAK.Api\DARAK.Api.csproj `
+  --startup-project .\DARAK.Api\DARAK.Api.csproj
+dotnet test .\DARAK.sln --configuration Release --no-build
+```
+
+6. Run the API:
 
 ```powershell
 dotnet run --project .\DARAK.Api\DARAK.Api.csproj
 ```
 
-Swagger is available in Development mode:
+Swagger is intended for Development only.
 
-```text
-/swagger
-```
+## Configuration Guardrails
 
-Health endpoints:
+`BootstrapAdmin` is disabled by default. It requires explicit local credentials, refuses weak or placeholder values, and skips when a SuperAdmin already exists.
 
-```text
-/health
-/health/live
-```
+`DemoSeed` is disabled by default. It can seed a broad local dataset for portfolio review, but it runs only in Development, Demo, or Testing unless explicitly overridden and requires a strong local demo password when user seeding is enabled.
 
----
+`Notifications` are outbox-driven. Optional resident communications respect preferences; critical/urgent operational notices bypass opt-outs.
 
-## Docker
+Report export completion stores sanitized filenames under the controlled report export root and rejects traversal or absolute paths.
 
-```powershell
-copy .env.example .env
-docker compose up --build
-```
+## CI
 
-Default local Docker endpoints:
+GitHub Actions runs Release restore, build, and test. A separate SQL Server integration job starts a SQL Server container and runs the SQL-specific tests.
 
-```text
-API:        http://localhost:8080
-SQL Server: localhost:1433
-```
+## Key Docs
 
----
+- [Verification Evidence](docs/Verification-Evidence.md)
+- [Testing Strategy](docs/Testing-Strategy.md)
+- [Security Notes](docs/Security-Notes.md)
+- [Known Limitations](docs/Known-Limitations.md)
+- [Demo Seed Data](docs/Demo-Seed-Data.md)
+- [Architecture Diagrams](docs/Architecture-Diagrams.md)
+- [Screenshot Capture Guide](docs/Screenshot-Capture-Guide.md)
+- [Deployment Runbook](docs/Deployment-Runbook.md)
 
-## Testing
+## GitHub Hygiene
 
-Run all tests:
+Before publishing or packaging:
 
 ```powershell
-dotnet test .\DARAK.sln
+.\tools\Clean-BeforeGitHub.ps1
 ```
 
-After a build has already completed:
+Generated files such as `bin/`, `obj/`, logs, `TestResults/`, coverage output, uploads, exports, backup folders, `.env`, and ZIP files are ignored and should not be committed.
 
-```powershell
-dotnet test .\DARAK.sln --no-build
-```
+## Public Positioning
 
-Latest verified result:
+Good wording:
 
 ```text
-Test summary: total: 617, failed: 0, succeeded: 617, skipped: 0
+DARAK is a large ASP.NET Core backend portfolio project for residential compound operations, with authentication, authorization boundaries, compound scoping, financial workflow foundations, operations workflows, document/audit/reporting workflows, tests, and release hygiene.
 ```
 
----
+Avoid claiming it is a complete production SaaS until frontend clients, real provider integrations, production operations, and release-specific SQL evidence are completed and recorded.
 
-## Release Validation
+## Historical Markers
 
-Before publishing, handover, or archiving, remove generated artifacts and run the release gates:
+The repository keeps historical phase markers used by regression tests and handoff scripts. These are not a substitute for fresh verification evidence.
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass -Force
+- Phase 9 - Final Commercial Completion Pack
+  - No migration is required for Phase 9.
+  - Gate script: `tools/Test-FinalReleaseGate.ps1`.
+- Phase 23 - Final Commercial Review & Hardening Pass
+  - Gate script: `tools/Test-CommercialReadiness.ps1`.
+  - Package script: `tools/New-CommercialReleasePackage.ps1`.
+  - Migration required: none.
 
-Get-ChildItem . -Directory -Recurse -Force |
-    Where-Object { $_.Name -in @("bin", "obj", "TestResults", "coverage") } |
-    ForEach-Object {
-        Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
-    }
+## License
 
-.\tools\Test-CommercialReadiness.ps1
-.\tools\Test-FinalReleaseGate.ps1 -SkipDotnet -SkipDatabase
-```
-
-Expected result:
-
-```text
-Commercial readiness validation passed.
-DARAK final hardening gate passed.
-```
-
----
-
-## GitHub Actions
-
-The repository includes a CI workflow for restore, build, and test.
-
-Workflow path:
-
-```text
-.github/workflows/dotnet.yml
-```
-
-The workflow runs on push and pull request events.
-
----
-
-## Security Notes
-
-* Real secrets must be supplied through environment variables, deployment configuration, user secrets, or local `.env` files.
-* Real `.env` files must not be committed.
-* `.env.example` is provided as a safe template.
-* Swagger is intended for Development usage.
-* Health endpoints are available for local and container orchestration checks.
-* Role and compound access are enforced server-side.
-* Resident-facing access is scoped through authenticated identity.
-* Cleanup and release scripts exist to reduce accidental publication of generated or unsafe files.
-
----
-
-## Dependency Note
-
-The test project currently uses FluentAssertions. Its license terms should be reviewed before commercial redistribution or active commercial product use.
-
-Recommended options for a later improvement phase:
-
-* Keep FluentAssertions with a valid commercial license if required.
-* Replace FluentAssertions with built-in xUnit assertions.
-* Isolate test dependencies from commercial runtime distribution.
-
----
-
-## Current Known Scope
-
-DARAK is currently a backend source package.
-
-It does not include:
-
-* Frontend admin dashboard.
-* Resident mobile application.
-* Guard mobile/tablet application.
-* Real payment gateway integration.
-* Production cloud deployment.
-* Production object storage configuration.
-* Public SaaS subscription billing.
-* Multi-tenant licensing system.
-* Buyer demo UI.
-
-These are intentionally deferred to later productization phases.
-
----
-
-## Suggested Next Improvement Phase
-
-Recommended next phase after GitHub upload:
-
-1. Zero-warning cleanup.
-2. FluentAssertions license decision or dependency replacement.
-3. OpenAPI/Postman export.
-4. Demo seed data.
-5. Buyer presentation package.
-6. Admin dashboard prototype.
-7. Resident portal prototype.
-8. Guard screen prototype.
-9. SaaS and licensing layer.
-10. Advanced escalation and intelligence features.
-
----
-
-## Commercial Product Direction
-
-DARAK is intended to become a complete residential compound management platform.
-
-The backend already provides a hardened foundation for:
-
-* Property operations
-* Resident finance
-* Utility billing
-* Contract governance
-* Visitor control
-* Maintenance operations
-* Admin approvals
-* Audit and reporting
-* Commercial handover
-* Future SaaS expansion
-
-The current repository is suitable for private GitHub storage, technical review, continued hardening, and later productization.
-
----
-
-## Disclaimer
-
-This repository is a backend engineering project and requires environment-specific configuration, deployment hardening, operational review, and integration testing before being used in a real production environment.
+No license is currently declared. Add a license before public or commercial distribution.

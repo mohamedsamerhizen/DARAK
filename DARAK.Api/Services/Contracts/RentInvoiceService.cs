@@ -806,10 +806,12 @@ public sealed class RentInvoiceService(
                 && invoice.RentInvoiceStatus != RentInvoiceStatus.Cancelled
                 && invoice.RentInvoiceStatus != RentInvoiceStatus.Paid
                 && (invoice.Year < year || (invoice.Year == year && invoice.Month < month)))
-            .Select(invoice => new { invoice.TotalAmount, invoice.PaidAmount })
+            .Select(invoice => new { invoice.TotalAmount, invoice.PaidAmount, invoice.PreviousBalanceAmount })
             .ToArrayAsync(cancellationToken);
 
-        return previousBalances.Sum(invoice => Math.Max(0m, invoice.TotalAmount - invoice.PaidAmount));
+        var openBalance = previousBalances.Sum(invoice => Math.Max(0m, invoice.TotalAmount - invoice.PaidAmount));
+        var alreadyCarried = previousBalances.Sum(invoice => invoice.PreviousBalanceAmount);
+        return Math.Max(0m, openBalance - alreadyCarried);
     }
 
     private async Task<Guid[]> GetResidentProfileIdsAsync(Guid userId, CancellationToken cancellationToken)

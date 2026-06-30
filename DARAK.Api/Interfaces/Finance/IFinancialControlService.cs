@@ -14,6 +14,11 @@ public interface IFinancialControlService
         ResidentStatementQuery query,
         CancellationToken cancellationToken = default);
 
+    Task<ServiceResult<ResidentStatementResponse>> GetResidentStatementForUserAsync(
+        Guid userId,
+        ResidentStatementQuery query,
+        CancellationToken cancellationToken = default);
+
     Task<ServiceResult<PagedResult<FinancialAdjustmentResponse>>> SearchAdjustmentsAsync(
         FinancialAdjustmentSearchQuery query,
         CancellationToken cancellationToken = default);

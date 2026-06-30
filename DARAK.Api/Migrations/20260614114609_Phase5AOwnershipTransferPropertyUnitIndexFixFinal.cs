@@ -10,18 +10,24 @@ namespace DARAK.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateIndex(
-                name: "IX_OwnershipTransferRequests_PropertyUnitId",
-                table: "OwnershipTransferRequests",
-                column: "PropertyUnitId");
+            migrationBuilder.Sql(
+                """
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM sys.indexes
+                    WHERE name = N'IX_OwnershipTransferRequests_PropertyUnitId'
+                      AND object_id = OBJECT_ID(N'[OwnershipTransferRequests]')
+                )
+                BEGIN
+                    CREATE INDEX [IX_OwnershipTransferRequests_PropertyUnitId]
+                    ON [OwnershipTransferRequests] ([PropertyUnitId]);
+                END
+                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_OwnershipTransferRequests_PropertyUnitId",
-                table: "OwnershipTransferRequests");
         }
     }
 }

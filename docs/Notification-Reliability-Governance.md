@@ -8,6 +8,9 @@ DARAK uses an outbox-driven notification model. Notification reliability work mu
 4. Failed provider deliveries are retried with bounded exponential backoff.
 5. Manual retry resets failed retry counters so an exhausted notification can be deliberately re-processed.
 6. Sent notifications remain immutable and cannot be retried.
+7. Resident preferences suppress optional in-app communications.
+8. Critical, urgent, and mandatory operational notices bypass opt-outs.
+9. Announcement and utility-outage fan-out must remain compound-scoped.
 
 ## Runtime Options
 
@@ -23,4 +26,4 @@ The `Notifications` configuration section supports:
 
 ## Migration Policy
 
-This phase does not require a database migration. It changes runtime behavior and configuration defaults only.
+The final communications pass does not require a database migration. It changes runtime behavior, preference enforcement, audit coverage, and tests only.

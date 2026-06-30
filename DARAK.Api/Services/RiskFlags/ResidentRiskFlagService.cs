@@ -28,8 +28,7 @@ public sealed class ResidentRiskFlagService(
     private static readonly UserRole[] ManagerRoles =
     [
         UserRole.SuperAdmin,
-        UserRole.CompoundAdmin,
-        UserRole.Accountant
+        UserRole.CompoundAdmin
     ];
 
     private static readonly UserRole[] ClosureRoles =

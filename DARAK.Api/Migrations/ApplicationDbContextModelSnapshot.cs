@@ -1555,6 +1555,41 @@ namespace DARAK.Api.Migrations
                     b.ToTable("ContractLifecycleEvents", (string)null);
                 });
 
+            modelBuilder.Entity("DARAK.Api.Entities.ContractorAccessLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ContractorWorkPermitId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("GuardUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Action");
+
+                    b.HasIndex("ContractorWorkPermitId");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("GuardUserId");
+
+                    b.ToTable("ContractorAccessLogs", (string)null);
+                });
+
             modelBuilder.Entity("DARAK.Api.Entities.ContractorWorkPermit", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2632,6 +2667,10 @@ namespace DARAK.Api.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<string>("Reference")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
                     b.Property<Guid>("StockItemId")
                         .HasColumnType("uniqueidentifier");
 
@@ -2657,6 +2696,10 @@ namespace DARAK.Api.Migrations
                     b.HasIndex("StockItemId");
 
                     b.HasIndex("WorkOrderId");
+
+                    b.HasIndex("CompoundId", "Reference")
+                        .IsUnique()
+                        .HasFilter("[Reference] IS NOT NULL");
 
                     b.ToTable("InventoryMovements", (string)null);
                 });
@@ -4184,144 +4227,6 @@ namespace DARAK.Api.Migrations
                     b.ToTable("PaymentAttempts", (string)null);
                 });
 
-
-            modelBuilder.Entity("DARAK.Api.Entities.PaymentReconciliationBatch", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("ClosedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ClosedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("CompoundId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("Provider")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<DateOnly>("StatementDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("StatementReference")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClosedByUserId");
-
-                    b.HasIndex("CompoundId");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("Provider");
-
-                    b.HasIndex("StatementDate");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("CompoundId", "Provider", "StatementReference")
-                        .IsUnique();
-
-                    b.ToTable("PaymentReconciliationBatches", (string)null);
-                });
-
-            modelBuilder.Entity("DARAK.Api.Entities.PaymentReconciliationItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal?>("DifferenceAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("IssueReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("MatchStatus")
-                        .HasColumnType("int");
-
-                    b.Property<Guid?>("MatchedPaymentAttemptId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("MatchedPaymentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PaymentReconciliationBatchId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("ProviderAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("ProviderStatus")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ProviderTransactionId")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<int>("ReviewDecision")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ReviewNotes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime?>("ReviewedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ReviewedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MatchStatus");
-
-                    b.HasIndex("MatchedPaymentAttemptId");
-
-                    b.HasIndex("MatchedPaymentId");
-
-                    b.HasIndex("PaymentReconciliationBatchId");
-
-                    b.HasIndex("ReviewDecision");
-
-                    b.HasIndex("ReviewedAtUtc");
-
-                    b.HasIndex("ReviewedByUserId");
-
-                    b.HasIndex("PaymentReconciliationBatchId", "ProviderTransactionId")
-                        .IsUnique();
-
-                    b.ToTable("PaymentReconciliationItems", (string)null);
-                });
-
             modelBuilder.Entity("DARAK.Api.Entities.PaymentPlan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4424,6 +4329,143 @@ namespace DARAK.Api.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("PaymentPlanInstallments", (string)null);
+                });
+
+            modelBuilder.Entity("DARAK.Api.Entities.PaymentReconciliationBatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ClosedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CompoundId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateOnly>("StatementDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("StatementReference")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClosedByUserId");
+
+                    b.HasIndex("CompoundId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("Provider");
+
+                    b.HasIndex("StatementDate");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("CompoundId", "Provider", "StatementReference")
+                        .IsUnique();
+
+                    b.ToTable("PaymentReconciliationBatches", (string)null);
+                });
+
+            modelBuilder.Entity("DARAK.Api.Entities.PaymentReconciliationItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("DifferenceAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("IssueReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("MatchStatus")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("MatchedPaymentAttemptId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("MatchedPaymentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PaymentReconciliationBatchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("ProviderAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ProviderStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProviderTransactionId")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int>("ReviewDecision")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MatchStatus");
+
+                    b.HasIndex("MatchedPaymentAttemptId");
+
+                    b.HasIndex("MatchedPaymentId");
+
+                    b.HasIndex("PaymentReconciliationBatchId");
+
+                    b.HasIndex("ReviewDecision");
+
+                    b.HasIndex("ReviewedAtUtc");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("PaymentReconciliationBatchId", "ProviderTransactionId")
+                        .IsUnique();
+
+                    b.ToTable("PaymentReconciliationItems", (string)null);
                 });
 
             modelBuilder.Entity("DARAK.Api.Entities.PenaltyRule", b =>
@@ -4531,6 +4573,10 @@ namespace DARAK.Api.Migrations
 
                     b.Property<DateTime?>("LastGeneratedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("LastGeneratedOccurrenceKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<Guid>("MaintenanceAssetId")
                         .HasColumnType("uniqueidentifier");
@@ -5901,6 +5947,9 @@ namespace DARAK.Api.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
+                    b.Property<Guid>("CompoundId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("ContactPersonName")
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
@@ -5936,6 +5985,8 @@ namespace DARAK.Api.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompoundId");
 
                     b.HasIndex("Name");
 
@@ -6115,6 +6166,9 @@ namespace DARAK.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid>("CompoundId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -6157,6 +6211,8 @@ namespace DARAK.Api.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompoundId");
 
                     b.HasIndex("FullName");
 
@@ -6207,6 +6263,12 @@ namespace DARAK.Api.Migrations
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<string>("Sku")
                         .IsRequired()
@@ -7480,11 +7542,18 @@ namespace DARAK.Api.Migrations
                     b.Property<DateTime?>("FirstRespondedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("LastSlaEscalatedAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<Guid?>("MaintenanceAssetId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("MaintenanceSlaPolicyId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PreventiveMaintenanceOccurrenceKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<int>("Priority")
                         .HasColumnType("int");
@@ -7513,6 +7582,12 @@ namespace DARAK.Api.Migrations
 
                     b.Property<DateTime?>("SlaBreachedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("SlaEscalatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("SlaEscalationCount")
+                        .HasColumnType("int");
 
                     b.Property<int>("SlaStatus")
                         .HasColumnType("int");
@@ -7563,11 +7638,17 @@ namespace DARAK.Api.Migrations
 
                     b.HasIndex("ResponseDueAtUtc");
 
+                    b.HasIndex("SlaEscalatedAtUtc");
+
                     b.HasIndex("SlaStatus");
 
                     b.HasIndex("Status");
 
                     b.HasIndex("SourceType", "SourceEntityId");
+
+                    b.HasIndex("CompoundId", "SourceType", "SourceEntityId", "PreventiveMaintenanceOccurrenceKey")
+                        .IsUnique()
+                        .HasFilter("[PreventiveMaintenanceOccurrenceKey] IS NOT NULL");
 
                     b.ToTable("WorkOrders", (string)null);
                 });
@@ -8381,6 +8462,24 @@ namespace DARAK.Api.Migrations
                     b.Navigation("PropertyUnit");
 
                     b.Navigation("ResidentProfile");
+                });
+
+            modelBuilder.Entity("DARAK.Api.Entities.ContractorAccessLog", b =>
+                {
+                    b.HasOne("DARAK.Api.Entities.ContractorWorkPermit", "ContractorWorkPermit")
+                        .WithMany("AccessLogs")
+                        .HasForeignKey("ContractorWorkPermitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DARAK.Api.Identity.ApplicationUser", "GuardUser")
+                        .WithMany()
+                        .HasForeignKey("GuardUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ContractorWorkPermit");
+
+                    b.Navigation("GuardUser");
                 });
 
             modelBuilder.Entity("DARAK.Api.Entities.ContractorWorkPermit", b =>
@@ -9366,64 +9465,6 @@ namespace DARAK.Api.Migrations
                     b.Navigation("Payment");
                 });
 
-
-            modelBuilder.Entity("DARAK.Api.Entities.PaymentReconciliationBatch", b =>
-                {
-                    b.HasOne("DARAK.Api.Identity.ApplicationUser", "ClosedByUser")
-                        .WithMany()
-                        .HasForeignKey("ClosedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("DARAK.Api.Entities.Compound", "Compound")
-                        .WithMany()
-                        .HasForeignKey("CompoundId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("DARAK.Api.Identity.ApplicationUser", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("ClosedByUser");
-
-                    b.Navigation("Compound");
-
-                    b.Navigation("CreatedByUser");
-                });
-
-            modelBuilder.Entity("DARAK.Api.Entities.PaymentReconciliationItem", b =>
-                {
-                    b.HasOne("DARAK.Api.Entities.PaymentReconciliationBatch", "Batch")
-                        .WithMany("Items")
-                        .HasForeignKey("PaymentReconciliationBatchId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DARAK.Api.Entities.Payment", "MatchedPayment")
-                        .WithMany()
-                        .HasForeignKey("MatchedPaymentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("DARAK.Api.Entities.PaymentAttempt", "MatchedPaymentAttempt")
-                        .WithMany()
-                        .HasForeignKey("MatchedPaymentAttemptId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("DARAK.Api.Identity.ApplicationUser", "ReviewedByUser")
-                        .WithMany()
-                        .HasForeignKey("ReviewedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Batch");
-
-                    b.Navigation("MatchedPayment");
-
-                    b.Navigation("MatchedPaymentAttempt");
-
-                    b.Navigation("ReviewedByUser");
-                });
-
             modelBuilder.Entity("DARAK.Api.Entities.PaymentPlan", b =>
                 {
                     b.HasOne("DARAK.Api.Entities.CollectionCase", "CollectionCase")
@@ -9467,6 +9508,63 @@ namespace DARAK.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("PaymentPlan");
+                });
+
+            modelBuilder.Entity("DARAK.Api.Entities.PaymentReconciliationBatch", b =>
+                {
+                    b.HasOne("DARAK.Api.Identity.ApplicationUser", "ClosedByUser")
+                        .WithMany()
+                        .HasForeignKey("ClosedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DARAK.Api.Entities.Compound", "Compound")
+                        .WithMany()
+                        .HasForeignKey("CompoundId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DARAK.Api.Identity.ApplicationUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ClosedByUser");
+
+                    b.Navigation("Compound");
+
+                    b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("DARAK.Api.Entities.PaymentReconciliationItem", b =>
+                {
+                    b.HasOne("DARAK.Api.Entities.PaymentAttempt", "MatchedPaymentAttempt")
+                        .WithMany()
+                        .HasForeignKey("MatchedPaymentAttemptId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DARAK.Api.Entities.Payment", "MatchedPayment")
+                        .WithMany()
+                        .HasForeignKey("MatchedPaymentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DARAK.Api.Entities.PaymentReconciliationBatch", "Batch")
+                        .WithMany("Items")
+                        .HasForeignKey("PaymentReconciliationBatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DARAK.Api.Identity.ApplicationUser", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Batch");
+
+                    b.Navigation("MatchedPayment");
+
+                    b.Navigation("MatchedPaymentAttempt");
+
+                    b.Navigation("ReviewedByUser");
                 });
 
             modelBuilder.Entity("DARAK.Api.Entities.PenaltyRule", b =>
@@ -9995,6 +10093,17 @@ namespace DARAK.Api.Migrations
                     b.Navigation("CreatedByUser");
                 });
 
+            modelBuilder.Entity("DARAK.Api.Entities.ServiceVendor", b =>
+                {
+                    b.HasOne("DARAK.Api.Entities.Compound", "Compound")
+                        .WithMany()
+                        .HasForeignKey("CompoundId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Compound");
+                });
+
             modelBuilder.Entity("DARAK.Api.Entities.SmartMeterDevice", b =>
                 {
                     b.HasOne("DARAK.Api.Entities.Compound", "Compound")
@@ -10058,10 +10167,18 @@ namespace DARAK.Api.Migrations
 
             modelBuilder.Entity("DARAK.Api.Entities.StaffMember", b =>
                 {
+                    b.HasOne("DARAK.Api.Entities.Compound", "Compound")
+                        .WithMany()
+                        .HasForeignKey("CompoundId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("DARAK.Api.Identity.ApplicationUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Compound");
 
                     b.Navigation("User");
                 });
@@ -10829,6 +10946,11 @@ namespace DARAK.Api.Migrations
                     b.Navigation("UtilityBillLines");
                 });
 
+            modelBuilder.Entity("DARAK.Api.Entities.ContractorWorkPermit", b =>
+                {
+                    b.Navigation("AccessLogs");
+                });
+
             modelBuilder.Entity("DARAK.Api.Entities.Conversation", b =>
                 {
                     b.Navigation("Messages");
@@ -10895,15 +11017,14 @@ namespace DARAK.Api.Migrations
                     b.Navigation("Receipt");
                 });
 
+            modelBuilder.Entity("DARAK.Api.Entities.PaymentPlan", b =>
+                {
+                    b.Navigation("Installments");
+                });
 
             modelBuilder.Entity("DARAK.Api.Entities.PaymentReconciliationBatch", b =>
                 {
                     b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("DARAK.Api.Entities.PaymentPlan", b =>
-                {
-                    b.Navigation("Installments");
                 });
 
             modelBuilder.Entity("DARAK.Api.Entities.ProcurementRequest", b =>

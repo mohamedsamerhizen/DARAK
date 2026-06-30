@@ -65,6 +65,13 @@ public sealed class PropertySaleService(
             return ToResult<PropertySaleContractResponse>(validation.Failure);
         }
 
+        var idempotencyKey = TrimOrNull(request.IdempotencyKey);
+        if (idempotencyKey is not null
+            && await dbContext.Payments.AsNoTracking().AnyAsync(payment => payment.IdempotencyKey == idempotencyKey, cancellationToken))
+        {
+            return ServiceResult<PropertySaleContractResponse>.Conflict("Idempotency key is already used by another payment.");
+        }
+
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         validation.PropertyUnit!.UnitStatus = UnitStatus.SoldCash;
@@ -86,6 +93,12 @@ public sealed class PropertySaleService(
         };
 
         dbContext.PropertySaleContracts.Add(contract);
+        await AddSalePaymentRecordsAsync(
+            contract,
+            request.PropertyPrice,
+            idempotencyKey,
+            "Cash sale payment received",
+            cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -128,6 +141,13 @@ public sealed class PropertySaleService(
         if (validation.Failure is not null)
         {
             return ToResult<PropertySaleContractResponse>(validation.Failure);
+        }
+
+        var downPaymentIdempotencyKey = TrimOrNull(request.DownPaymentIdempotencyKey);
+        if (downPaymentIdempotencyKey is not null
+            && await dbContext.Payments.AsNoTracking().AnyAsync(payment => payment.IdempotencyKey == downPaymentIdempotencyKey, cancellationToken))
+        {
+            return ServiceResult<PropertySaleContractResponse>.Conflict("Down-payment idempotency key is already used by another payment.");
         }
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -178,6 +198,16 @@ public sealed class PropertySaleService(
 
         contract.Installments = installments;
         dbContext.PropertySaleContracts.Add(contract);
+        if (request.DownPaymentAmount > 0)
+        {
+            await AddSalePaymentRecordsAsync(
+                contract,
+                request.DownPaymentAmount,
+                downPaymentIdempotencyKey,
+                "Property sale down payment received",
+                cancellationToken);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -1039,6 +1069,102 @@ public sealed class PropertySaleService(
     private static string GenerateReference(string prefix)
     {
         return $"{prefix}-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..16].ToUpperInvariant()}";
+    }
+
+    private async Task AddSalePaymentRecordsAsync(
+        PropertySaleContract contract,
+        decimal amount,
+        string? idempotencyKey,
+        string description,
+        CancellationToken cancellationToken)
+    {
+        var occurredAtUtc = contract.ContractDate.ToDateTime(TimeOnly.MinValue);
+        var payment = new Payment
+        {
+            CompoundId = contract.CompoundId,
+            ResidentProfileId = contract.ResidentProfileId,
+            TargetType = PaymentTargetType.PropertySaleContract,
+            TargetId = contract.Id,
+            PaymentMethod = PaymentMethod.ManualAdminPayment,
+            PaymentStatus = PaymentStatus.Succeeded,
+            Amount = amount,
+            Currency = "IQD",
+            IdempotencyKey = idempotencyKey,
+            PaymentReference = await GenerateUniquePaymentReferenceAsync(cancellationToken),
+            CompletedAt = occurredAtUtc,
+            Attempts =
+            [
+                new PaymentAttempt
+                {
+                    AttemptStatus = PaymentStatus.Succeeded,
+                    Provider = PaymentMethod.ManualAdminPayment.ToString(),
+                    Message = description
+                }
+            ],
+            Receipt = new Receipt
+            {
+                ReceiptNumber = await GenerateUniqueReceiptNumberAsync(cancellationToken),
+                Amount = amount,
+                IssuedAt = occurredAtUtc
+            }
+        };
+        payment.Receipt.PaymentId = payment.Id;
+
+        dbContext.Payments.Add(payment);
+        dbContext.ResidentLedgerEntries.Add(new ResidentLedgerEntry
+        {
+            CompoundId = contract.CompoundId,
+            ResidentProfileId = contract.ResidentProfileId,
+            Direction = FinancialLedgerEntryDirection.Debit,
+            SourceType = FinancialLedgerSourceType.PropertySaleContract,
+            SourceId = contract.Id,
+            Amount = amount,
+            Currency = "IQD",
+            Reference = contract.ContractNumber,
+            Description = contract.SaleType == SaleType.Cash
+                ? "Cash property sale amount due"
+                : "Property sale down payment due",
+            OccurredAtUtc = occurredAtUtc,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+        dbContext.ResidentLedgerEntries.Add(new ResidentLedgerEntry
+        {
+            CompoundId = contract.CompoundId,
+            ResidentProfileId = contract.ResidentProfileId,
+            Direction = FinancialLedgerEntryDirection.Credit,
+            SourceType = FinancialLedgerSourceType.Payment,
+            SourceId = payment.Id,
+            Amount = amount,
+            Currency = "IQD",
+            Reference = payment.PaymentReference,
+            Description = description,
+            OccurredAtUtc = occurredAtUtc,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+    }
+
+    private async Task<string> GenerateUniquePaymentReferenceAsync(CancellationToken cancellationToken)
+    {
+        string reference;
+        do
+        {
+            reference = $"PAY-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+        }
+        while (await dbContext.Payments.AsNoTracking().AnyAsync(payment => payment.PaymentReference == reference, cancellationToken));
+
+        return reference;
+    }
+
+    private async Task<string> GenerateUniqueReceiptNumberAsync(CancellationToken cancellationToken)
+    {
+        string receiptNumber;
+        do
+        {
+            receiptNumber = $"RCT-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+        }
+        while (await dbContext.Receipts.AsNoTracking().AnyAsync(receipt => receipt.ReceiptNumber == receiptNumber, cancellationToken));
+
+        return receiptNumber;
     }
 
     private static ServiceResult<T> ToResult<T>(ValidationFailure validationFailure)

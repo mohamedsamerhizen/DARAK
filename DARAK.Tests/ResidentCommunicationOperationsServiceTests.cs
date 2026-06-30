@@ -45,6 +45,59 @@ public sealed class ResidentCommunicationOperationsServiceTests
     }
 
     [Fact]
+    public async Task CreateUtilityOutageAsync_RespectsOptionalOptOutButCriticalBypassesIt()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "OUT-PREF");
+        var building = await AddBuildingAsync(dbContext, compound.Id, "B1");
+        var floor = await AddFloorAsync(dbContext, compound.Id, building.Id, 1);
+        var unit = await AddUnitAsync(dbContext, compound.Id, building.Id, floor.Id, "101");
+        var resident = await AddResidentWithOccupancyAsync(dbContext, compound.Id, unit.Id, "Muted Outage Resident");
+        dbContext.ResidentNotificationPreferences.Add(new ResidentNotificationPreference
+        {
+            UserId = resident.UserId,
+            InAppEnabled = false,
+            AnnouncementNotificationsEnabled = false
+        });
+        await dbContext.SaveChangesAsync();
+        var service = CreateService(dbContext, compound.Id);
+
+        var optional = await service.CreateUtilityOutageAsync(Guid.NewGuid(), new CreateUtilityOutageRequest
+        {
+            CompoundId = compound.Id,
+            BuildingId = building.Id,
+            FloorId = floor.Id,
+            PropertyUnitId = unit.Id,
+            AffectedScope = UtilityOutageAffectedScope.Unit,
+            ServiceType = UtilityOutageServiceType.Water,
+            Severity = UtilityOutageSeverity.Medium,
+            Title = "Optional water notice",
+            Description = "A medium severity water interruption.",
+            NotifyResidents = true
+        });
+        var critical = await service.CreateUtilityOutageAsync(Guid.NewGuid(), new CreateUtilityOutageRequest
+        {
+            CompoundId = compound.Id,
+            BuildingId = building.Id,
+            FloorId = floor.Id,
+            PropertyUnitId = unit.Id,
+            AffectedScope = UtilityOutageAffectedScope.Unit,
+            ServiceType = UtilityOutageServiceType.Water,
+            Severity = UtilityOutageSeverity.Critical,
+            Title = "Critical water outage",
+            Description = "A critical water interruption.",
+            NotifyResidents = true
+        });
+
+        optional.IsSuccess.Should().BeTrue(optional.Message);
+        optional.Value!.Outage.OutboxItemCount.Should().Be(0);
+        critical.IsSuccess.Should().BeTrue(critical.Message);
+        critical.Value!.Outage.OutboxItemCount.Should().Be(1);
+        dbContext.ResidentNotifications.Should().ContainSingle(item => item.Title == "Critical water outage");
+        dbContext.ResidentNotifications.Should().NotContain(item => item.Title == "Optional water notice");
+    }
+
+    [Fact]
     public async Task SearchResidentUtilityOutagesAsync_ReturnsOnlyResidentAffectedOutages()
     {
         await using var dbContext = TestDb.Create();

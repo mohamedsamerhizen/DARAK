@@ -1,6 +1,7 @@
-﻿using DARAK.Api.Data;
+using DARAK.Api.Data;
 using DARAK.Api.DTOs.Common;
 using DARAK.Api.DTOs.Communication;
+using DARAK.Api.DTOs.Audit;
 using DARAK.Api.Entities;
 using DARAK.Api.Enums;
 using DARAK.Api.Helpers;
@@ -11,7 +12,8 @@ namespace DARAK.Api.Services;
 
 public sealed class ResidentCommunicationOperationsService(
     ApplicationDbContext dbContext,
-    ICompoundAccessService? compoundAccessService = null)
+    ICompoundAccessService? compoundAccessService = null,
+    IAuditLogService? auditLogService = null)
     : IResidentCommunicationOperationsService
 {
     private const int MaxTitleLength = 150;
@@ -167,9 +169,31 @@ public sealed class ResidentCommunicationOperationsService(
         if (request.NotifyResidents)
         {
             var recipients = await GetAffectedResidentRecipientsAsync(outage, cancellationToken);
-            AddResidentNotifications(outage, recipients, currentUserId, title, description, MapNotificationPriority(outage.Severity));
+            var outboxItemCount = await AddResidentNotificationsAsync(
+                outage,
+                recipients,
+                currentUserId,
+                title,
+                description,
+                MapNotificationPriority(outage.Severity),
+                cancellationToken);
             outage.RecipientCount = recipients.Count;
-            outage.OutboxItemCount = recipients.Count;
+            outage.OutboxItemCount = outboxItemCount;
+        }
+
+        if (auditLogService is not null)
+        {
+            await auditLogService.AppendEntryAsync(new AuditLogRecord(
+                CompoundId: outage.CompoundId,
+                ResidentProfileId: null,
+                ActorUserId: currentUserId,
+                ActorRole: null,
+                ActionType: AuditActionType.UtilityOutagePublished,
+                EntityType: AuditEntityType.UtilityOutage,
+                EntityId: outage.Id,
+                Severity: outage.Severity == UtilityOutageSeverity.Critical ? AuditSeverity.High : AuditSeverity.Medium,
+                SourceModule: "Communication",
+                Description: "Utility outage created and resident communication scope evaluated."), cancellationToken);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -249,9 +273,16 @@ public sealed class ResidentCommunicationOperationsService(
         if (request.NotifyResidents)
         {
             var recipients = await GetAffectedResidentRecipientsAsync(outage, cancellationToken);
-            AddResidentNotifications(outage, recipients, currentUserId, outage.Title, message, MapNotificationPriority(outage.Severity));
+            var outboxItemCount = await AddResidentNotificationsAsync(
+                outage,
+                recipients,
+                currentUserId,
+                outage.Title,
+                message,
+                MapNotificationPriority(outage.Severity),
+                cancellationToken);
             outage.RecipientCount = Math.Max(outage.RecipientCount, recipients.Count);
-            outage.OutboxItemCount += recipients.Count;
+            outage.OutboxItemCount += outboxItemCount;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -299,8 +330,15 @@ public sealed class ResidentCommunicationOperationsService(
         if (request.NotifyResidents)
         {
             var recipients = await GetAffectedResidentRecipientsAsync(outage, cancellationToken);
-            AddResidentNotifications(outage, recipients, currentUserId, outage.Title, notes ?? "Utility outage resolved.", NotificationPriority.Normal);
-            outage.OutboxItemCount += recipients.Count;
+            var outboxItemCount = await AddResidentNotificationsAsync(
+                outage,
+                recipients,
+                currentUserId,
+                outage.Title,
+                notes ?? "Utility outage resolved.",
+                NotificationPriority.Normal,
+                cancellationToken);
+            outage.OutboxItemCount += outboxItemCount;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -344,8 +382,15 @@ public sealed class ResidentCommunicationOperationsService(
         if (request.NotifyResidents)
         {
             var recipients = await GetAffectedResidentRecipientsAsync(outage, cancellationToken);
-            AddResidentNotifications(outage, recipients, currentUserId, outage.Title, reason, NotificationPriority.Normal);
-            outage.OutboxItemCount += recipients.Count;
+            var outboxItemCount = await AddResidentNotificationsAsync(
+                outage,
+                recipients,
+                currentUserId,
+                outage.Title,
+                reason,
+                NotificationPriority.Normal,
+                cancellationToken);
+            outage.OutboxItemCount += outboxItemCount;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -1395,26 +1440,44 @@ public sealed class ResidentCommunicationOperationsService(
             .ToListAsync(cancellationToken);
     }
 
-    private void AddResidentNotifications(
+    private async Task<int> AddResidentNotificationsAsync(
         UtilityOutage outage,
         IReadOnlyCollection<OutageResidentRecipient> recipients,
         Guid? currentUserId,
         string title,
         string message,
-        NotificationPriority priority)
+        NotificationPriority priority,
+        CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
+        var userIds = recipients.Select(recipient => recipient.UserId).Distinct().ToArray();
+        var preferences = await dbContext.ResidentNotificationPreferences
+            .Where(preference => userIds.Contains(preference.UserId))
+            .ToDictionaryAsync(preference => preference.UserId, cancellationToken);
+        var severity = MapResidentNotificationSeverity(priority);
+        var outboxItemCount = 0;
+
         foreach (var recipient in recipients)
         {
+            preferences.TryGetValue(recipient.UserId, out var preference);
+            var suppressionReason = ResidentNotificationPreferencePolicy.GetSuppressionReason(
+                preference,
+                ResidentNotificationType.Announcement,
+                severity,
+                priority,
+                now);
+            if (suppressionReason is not null)
+            {
+                continue;
+            }
+
             dbContext.ResidentNotifications.Add(new ResidentNotification
             {
                 UserId = recipient.UserId,
                 Title = title,
                 Message = message,
                 Type = ResidentNotificationType.Announcement,
-                Severity = priority is NotificationPriority.Urgent or NotificationPriority.High
-                    ? ResidentNotificationSeverity.Warning
-                    : ResidentNotificationSeverity.Info,
+                Severity = severity,
                 RelatedEntityType = nameof(UtilityOutage),
                 RelatedEntityId = outage.Id,
                 CreatedAt = now
@@ -1439,7 +1502,10 @@ public sealed class ResidentCommunicationOperationsService(
                 ScheduledAtUtc = now,
                 CreatedByUserId = currentUserId
             });
+            outboxItemCount++;
         }
+
+        return outboxItemCount;
     }
 
     private async Task<IQueryable<UtilityOutage>> GetResidentVisibleOutagesAsync(
@@ -1651,6 +1717,16 @@ public sealed class ResidentCommunicationOperationsService(
         };
     }
 
+    private static ResidentNotificationSeverity MapResidentNotificationSeverity(NotificationPriority priority)
+    {
+        return priority switch
+        {
+            NotificationPriority.Urgent => ResidentNotificationSeverity.Critical,
+            NotificationPriority.High => ResidentNotificationSeverity.Warning,
+            _ => ResidentNotificationSeverity.Info
+        };
+    }
+
     private static string? TrimOrNull(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -1662,4 +1738,3 @@ public sealed class ResidentCommunicationOperationsService(
         string FullName,
         string? PhoneNumber);
 }
-

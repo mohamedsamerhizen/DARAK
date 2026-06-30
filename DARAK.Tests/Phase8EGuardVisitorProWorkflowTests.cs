@@ -24,7 +24,9 @@ public sealed class Phase8EGuardVisitorProWorkflowTests
 
         result.Status.Should().Be(ServiceResultStatus.Success);
         result.Value!.Id.Should().Be(seed.AllowedPassId);
-        result.Value.AccessCode.Should().Be(seed.AllowedAccessCode);
+        result.Value.AccessCode.Should().Be("********");
+        dbContext.VisitorAccessLogs.Should().Contain(log =>
+            log.VisitorPassId == seed.AllowedPassId && log.Action == VisitorAccessAction.Verified);
     }
 
     [Fact]

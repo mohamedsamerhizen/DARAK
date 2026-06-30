@@ -39,9 +39,9 @@ internal sealed class DarakApiFactory : WebApplicationFactory<Program>
         SetTestEnvironment("Jwt__SecretKey", "DARAK_HTTP_TESTS_SECRET_KEY_1234567890");
         SetTestEnvironment("Jwt__AccessTokenMinutes", "60");
         SetTestEnvironment("Jwt__RefreshTokenDays", "7");
-        SetTestEnvironment("DevelopmentSuperAdmin__Email", "superadmin-http-tests@darak.local");
-        SetTestEnvironment("DevelopmentSuperAdmin__Password", "SuperAdmin@12345");
-        SetTestEnvironment("DevelopmentSuperAdmin__FullName", "HTTP Tests SuperAdmin");
+        SetTestEnvironment("Registration__EnablePublicRegistration", "true");
+        SetTestEnvironment("Registration__AutoConfirmRegisteredUsers", "true");
+        SetTestEnvironment("BootstrapAdmin__Enabled", "false");
         SetTestEnvironment("Payments__EnableMockGatewayEndpoints", enableMockGatewayEndpoints ? "true" : "false");
     }
 

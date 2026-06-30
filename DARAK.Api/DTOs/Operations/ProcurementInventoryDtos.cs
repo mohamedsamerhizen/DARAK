@@ -57,6 +57,9 @@ public sealed class InventoryAdjustmentRequest
     [Range(0, double.MaxValue)]
     public decimal? UnitCost { get; init; }
 
+    [MaxLength(120)]
+    public string? Reference { get; init; }
+
     [MaxLength(1000)]
     public string? Notes { get; init; }
 }
@@ -70,6 +73,9 @@ public sealed class IssueStockToWorkOrderRequest
 
     [Range(0, double.MaxValue)]
     public decimal? UnitCost { get; init; }
+
+    [MaxLength(120)]
+    public string? Reference { get; init; }
 
     [MaxLength(1000)]
     public string? Notes { get; init; }
@@ -102,6 +108,7 @@ public sealed record InventoryMovementResponse(
     Guid? WorkOrderId,
     Guid? PurchaseOrderItemId,
     Guid? CreatedByUserId,
+    string? Reference,
     string? Notes,
     DateTime CreatedAtUtc);
 
@@ -239,8 +246,18 @@ public sealed class ReceivePurchaseOrderItemRequest
     [Range(0.0001, double.MaxValue)]
     public decimal QuantityReceived { get; init; }
 
+    [MaxLength(120)]
+    public string? ReceiptReference { get; init; }
+
     [MaxLength(1000)]
     public string? Notes { get; init; }
+}
+
+public sealed class CancelPurchaseOrderRequest
+{
+    [Required]
+    [MaxLength(1000)]
+    public string Reason { get; init; } = string.Empty;
 }
 
 public sealed record PurchaseOrderItemResponse(

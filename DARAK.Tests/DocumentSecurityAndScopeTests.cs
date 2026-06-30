@@ -206,6 +206,57 @@ public sealed class DocumentSecurityAndScopeTests
     }
 
     [Fact]
+    public async Task GetAndDownloadDocumentAsync_WriteViewAndDownloadAccessLogs()
+    {
+        await using var dbContext = TestDb.Create();
+        using var environment = Pack2WebHostEnvironment.Create();
+        var managerUserId = Guid.NewGuid();
+        var compound = CreateCompound("Audited");
+        var document = CreateDocument(
+            compound.Id,
+            DocumentVisibility.Private,
+            ownerUserId: null,
+            "audited.pdf");
+        dbContext.AddRange(compound, document);
+        await dbContext.SaveChangesAsync();
+        var physicalPath = Path.Combine(
+            environment.ContentRootPath,
+            document.StoragePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(physicalPath)!);
+        await File.WriteAllBytesAsync(physicalPath, GetValidBytesFor(document.OriginalFileName));
+        var service = new DocumentService(
+            dbContext,
+            environment,
+            new FakeCompoundAccessService(new[] { compound.Id }));
+
+        var viewed = await service.GetDocumentAsync(
+            document.Id,
+            managerUserId,
+            isManager: true,
+            ipAddress: "127.0.0.1",
+            userAgent: "document-tests");
+        var downloaded = await service.DownloadDocumentAsync(
+            document.Id,
+            managerUserId,
+            isManager: true,
+            ipAddress: "127.0.0.1",
+            userAgent: "document-tests");
+
+        viewed.Status.Should().Be(ServiceResultStatus.Success);
+        downloaded.Status.Should().Be(ServiceResultStatus.Success);
+        dbContext.DocumentAccessLogs.Should().ContainSingle(log =>
+            log.DocumentFileId == document.Id
+            && log.UserId == managerUserId
+            && log.Action == DocumentAccessAction.Viewed
+            && log.IpAddress == "127.0.0.1");
+        dbContext.DocumentAccessLogs.Should().ContainSingle(log =>
+            log.DocumentFileId == document.Id
+            && log.UserId == managerUserId
+            && log.Action == DocumentAccessAction.Downloaded
+            && log.UserAgent == "document-tests");
+    }
+
+    [Fact]
     public async Task GetDocumentAsync_ManagerCannotViewDocumentOutsideAssignedCompound()
     {
         await using var dbContext = TestDb.Create();

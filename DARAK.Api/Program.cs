@@ -48,8 +48,17 @@ try
     builder.Services.Configure<JwtOptions>(
         builder.Configuration.GetSection(JwtOptions.SectionName));
 
+    builder.Services.Configure<RegistrationOptions>(
+        builder.Configuration.GetSection(RegistrationOptions.SectionName));
+
+    builder.Services.Configure<BootstrapAdminOptions>(
+        builder.Configuration.GetSection(BootstrapAdminOptions.SectionName));
+
     builder.Services.Configure<NotificationOptions>(
         builder.Configuration.GetSection(NotificationOptions.SectionName));
+
+    builder.Services.Configure<DemoSeedOptions>(
+        builder.Configuration.GetSection(DemoSeedOptions.SectionName));
 
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(connectionString));
@@ -182,6 +191,7 @@ try
     using (var scope = app.Services.CreateScope())
     {
         await IdentitySeeder.SeedAsync(scope.ServiceProvider);
+        await DemoDataSeeder.SeedAsync(scope.ServiceProvider);
     }
 
     app.UseSerilogRequestLogging();

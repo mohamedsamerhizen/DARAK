@@ -17,7 +17,8 @@ public sealed class StartupConfigurationHardeningTests
 
         developmentSettings.Should().Contain("\"SecretKey\"");
         developmentSettings.Should().NotContain("\"Key\"");
-        developmentSettings.Should().Contain("\"DevelopmentSuperAdmin\"");
+        developmentSettings.Should().Contain("\"BootstrapAdmin\"");
+        developmentSettings.Should().Contain("\"Registration\"");
         developmentSettings.Should().NotContain("\"SuperAdmin\":");
     }
 
@@ -108,10 +109,15 @@ public sealed class StartupConfigurationHardeningTests
         compose.Should().Contain("ASPNETCORE_ENVIRONMENT: \"Production\"");
         compose.Should().Contain("${SQLSERVER_SA_PASSWORD:?");
         compose.Should().Contain("${JWT_SECRET_KEY:?");
+        compose.Should().Contain("Registration__EnablePublicRegistration: \"${REGISTRATION_ENABLE_PUBLIC_REGISTRATION:-false}\"");
+        compose.Should().Contain("BootstrapAdmin__Enabled: \"${BOOTSTRAP_ADMIN_ENABLED:-false}\"");
+        compose.Should().Contain("BootstrapAdmin__Password: \"${BOOTSTRAP_ADMIN_PASSWORD:-}\"");
         compose.Should().NotContain("DevelopmentSuperAdmin__Password");
 
         envExample.Should().Contain("ASPNETCORE_ENVIRONMENT=Production");
         envExample.Should().Contain("JWT_SECRET_KEY=YOUR_64_PLUS_CHARACTER_PRODUCTION_JWT_SECRET_HERE");
+        envExample.Should().Contain("REGISTRATION_ENABLE_PUBLIC_REGISTRATION=false");
+        envExample.Should().Contain("BOOTSTRAP_ADMIN_ENABLED=false");
     }
 
     private static string FindRepositoryRoot()

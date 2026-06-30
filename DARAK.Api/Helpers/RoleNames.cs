@@ -58,7 +58,7 @@ public static class RoleNames
 
     public const string RiskFlagReaders = "SuperAdmin,CompoundAdmin,Accountant";
 
-    public const string RiskFlagManagers = "SuperAdmin,CompoundAdmin,Accountant";
+    public const string RiskFlagManagers = "SuperAdmin,CompoundAdmin";
 
     public const string RiskFlagClosureManagers = "SuperAdmin,CompoundAdmin";
 
@@ -86,6 +86,5 @@ public static class RoleNames
 
     public const string SystemManagers = "SuperAdmin,CompoundAdmin";
 }
-
 
 

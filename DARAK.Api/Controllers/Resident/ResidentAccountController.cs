@@ -2,6 +2,7 @@ using DARAK.Api.DTOs.Common;
 using DARAK.Api.DTOs.Communication;
 using DARAK.Api.DTOs.EmergencyContacts;
 using DARAK.Api.DTOs.FamilyMembers;
+using DARAK.Api.DTOs.Finance;
 using DARAK.Api.DTOs.Financial;
 using DARAK.Api.DTOs.Meters;
 using DARAK.Api.DTOs.Occupancy;
@@ -31,7 +32,8 @@ public sealed class ResidentAccountController(
     IMeterService meterService,
     IComplaintViolationService complaintViolationService,
     IConversationService conversationService,
-    IResidentFinancialHealthService residentFinancialHealthService)
+    IResidentFinancialHealthService residentFinancialHealthService,
+    IFinancialControlService financialControlService)
     : ApiControllerBase
 {
     [HttpGet]
@@ -54,6 +56,22 @@ public sealed class ResidentAccountController(
 
         return ToActionResult(await residentFinancialHealthService.GetCurrentResidentFinancialHealthAsync(
             userId,
+            cancellationToken));
+    }
+
+    [HttpGet("statement")]
+    public async Task<ActionResult<ResidentStatementResponse>> GetStatement(
+        [FromQuery] ResidentStatementQuery query,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId, out var unauthorizedResult))
+        {
+            return unauthorizedResult;
+        }
+
+        return ToActionResult(await financialControlService.GetResidentStatementForUserAsync(
+            userId,
+            query,
             cancellationToken));
     }
 

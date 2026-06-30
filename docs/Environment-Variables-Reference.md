@@ -23,13 +23,30 @@ This reference lists the runtime configuration values that should be provided th
 | `JWT_ACCESS_TOKEN_MINUTES` | Yes | Recommended local default: `15`. |
 | `JWT_REFRESH_TOKEN_DAYS` | Yes | Recommended local default: `7`. |
 
-## Development SuperAdmin Bootstrap
+## Registration
 
 | Variable | Required | Notes |
 |---|---:|---|
-| `DEVELOPMENT_SUPERADMIN_EMAIL` | Development | Required for local bootstrap only. |
-| `DEVELOPMENT_SUPERADMIN_PASSWORD` | Development | Required for local bootstrap only; must not be reused in production. |
-| `DEVELOPMENT_SUPERADMIN_FULLNAME` | Development | Display name for local bootstrap user. |
+| `REGISTRATION_ENABLE_PUBLIC_REGISTRATION` | Optional | Defaults to `true` in local compose and `false` in production compose. |
+| `REGISTRATION_AUTO_CONFIRM_REGISTERED_USERS` | Optional | Intended only for Development/Testing/Demo; production startup rejects auto-confirm. |
+
+## First SuperAdmin Bootstrap
+
+| Variable | Required | Notes |
+|---|---:|---|
+| `BOOTSTRAP_ADMIN_ENABLED` | Optional | Defaults to `false`. Set to `true` only for guarded first-admin provisioning. |
+| `BOOTSTRAP_ADMIN_EMAIL` | Bootstrap only | Required when bootstrap is enabled. Must not be a placeholder. |
+| `BOOTSTRAP_ADMIN_PASSWORD` | Bootstrap only | Required when bootstrap is enabled. Must be strong and not committed. |
+| `BOOTSTRAP_ADMIN_FULLNAME` | Optional | Display name for the first SuperAdmin. |
+
+## Demo Seed
+
+| Variable | Required | Notes |
+|---|---:|---|
+| `DEMO_SEED_ENABLED` | Optional | Defaults to `false`. Enable only for local portfolio/demo data. |
+| `DEMO_SEED_USERS` | Optional | Defaults to `true` locally and `false` in production compose. |
+| `DEMO_SEED_PASSWORD` | Demo users only | Required when demo user seeding is enabled. Must be strong and not committed. |
+| `DEMO_SEED_ALLOW_PRODUCTION` | Optional | Defaults to `false`. Leave disabled unless a controlled non-local demo environment intentionally needs seed data. |
 
 ## Notification Delivery
 
@@ -48,9 +65,18 @@ This reference lists the runtime configuration values that should be provided th
 | `NOTIFICATIONS_SMS_API_KEY` | Optional | Provider API key. |
 | `NOTIFICATIONS_SMS_SENDER_ID` | Optional | Sender ID approved by provider. |
 
+## Test-Only SQL Integration
+
+| Variable | Required | Notes |
+|---|---:|---|
+| `DARAK_SQLSERVER_TEST_CONNECTION` | Optional | Enables optional SQL Server integration tests. Tests create and delete a unique temporary database. |
+
 ## Production Rules
 
 - Do not set production to `Development`.
+- Do not enable registration auto-confirm in production.
+- Do not enable `BootstrapAdmin` unless first-admin provisioning is intentionally being performed.
+- Do not enable `DemoSeed` outside Development/Demo/Testing unless explicitly approved.
 - Do not enable SMTP/SMS without complete credentials.
 - Do not use `.env.example` values as real deployment values.
 - Do not store real secrets in `appsettings.json`.

@@ -18,12 +18,14 @@ public sealed class MaintenanceReliabilityPass15Tests
         var asset = await AddAssetAsync(dbContext, compound.Id, "P15-ASSET-BOTH");
         var staff = new StaffMember
         {
+            CompoundId = compound.Id,
             FullName = "Preventive Technician",
             PhoneNumber = "07700000001",
             StaffType = StaffType.MaintenanceTechnician
         };
         var vendor = new ServiceVendor
         {
+            CompoundId = compound.Id,
             Name = "Preventive Vendor",
             PhoneNumber = "07700000002",
             ServiceType = VendorServiceType.Maintenance

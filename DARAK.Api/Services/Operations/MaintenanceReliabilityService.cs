@@ -417,11 +417,39 @@ public sealed class MaintenanceReliabilityService(
             return ServiceResult<WorkOrderSlaSnapshotResponse>.BadRequest("Preventive work order due date is invalid.");
         }
 
-        var scheduledAtUtc = request.ScheduledAtUtc ?? DateTime.UtcNow;
+        var hasExplicitGenerationWindow = request.ScheduledAtUtc.HasValue || request.DueAtUtc.HasValue;
+        if (!hasExplicitGenerationWindow
+            && plan.NextDueAtUtc > DateTime.UtcNow
+            && plan.LastGeneratedOccurrenceKey is not null)
+        {
+            var lastGenerated = await FindPreventiveWorkOrderByOccurrenceAsync(
+                plan.CompoundId,
+                plan.Id,
+                plan.LastGeneratedOccurrenceKey,
+                cancellationToken);
+            if (lastGenerated is not null)
+            {
+                return ServiceResult<WorkOrderSlaSnapshotResponse>.Success(ToSlaSnapshotResponse(lastGenerated));
+            }
+        }
+
+        var scheduledAtUtc = request.ScheduledAtUtc ?? plan.NextDueAtUtc;
         if (request.DueAtUtc.HasValue && request.DueAtUtc.Value < scheduledAtUtc)
         {
             return ServiceResult<WorkOrderSlaSnapshotResponse>.BadRequest("Preventive work order due date cannot be before the scheduled date.");
         }
+
+        var occurrenceKey = BuildPreventiveOccurrenceKey(plan.Id, scheduledAtUtc);
+        var existingWorkOrder = await FindPreventiveWorkOrderByOccurrenceAsync(
+            plan.CompoundId,
+            plan.Id,
+            occurrenceKey,
+            cancellationToken);
+        if (existingWorkOrder is not null)
+        {
+            return ServiceResult<WorkOrderSlaSnapshotResponse>.Success(ToSlaSnapshotResponse(existingWorkOrder));
+        }
+
         var workOrder = new WorkOrder
         {
             Title = plan.Title,
@@ -437,7 +465,8 @@ public sealed class MaintenanceReliabilityService(
             AssignedVendorId = plan.AssignedVendorId,
             CreatedByUserId = currentUserId,
             MaintenanceAssetId = plan.MaintenanceAssetId,
-            ScheduledAtUtc = request.ScheduledAtUtc,
+            PreventiveMaintenanceOccurrenceKey = occurrenceKey,
+            ScheduledAtUtc = scheduledAtUtc,
             DueAtUtc = request.DueAtUtc,
             CreatedAtUtc = DateTime.UtcNow
         };
@@ -457,11 +486,30 @@ public sealed class MaintenanceReliabilityService(
         }
 
         plan.LastGeneratedAtUtc = DateTime.UtcNow;
+        plan.LastGeneratedOccurrenceKey = occurrenceKey;
         plan.NextDueAtUtc = CalculateNextDue(plan.NextDueAtUtc, plan.Cadence, plan.CustomIntervalDays);
         plan.MaintenanceAsset.LastServiceAtUtc = DateTime.UtcNow;
         plan.MaintenanceAsset.NextServiceDueAtUtc = plan.NextDueAtUtc;
         dbContext.WorkOrders.Add(workOrder);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            var existingAfterRace = await FindPreventiveWorkOrderByOccurrenceAsync(
+                plan.CompoundId,
+                plan.Id,
+                occurrenceKey,
+                cancellationToken);
+            if (existingAfterRace is null)
+            {
+                throw;
+            }
+
+            return ServiceResult<WorkOrderSlaSnapshotResponse>.Success(ToSlaSnapshotResponse(existingAfterRace));
+        }
+
         return ServiceResult<WorkOrderSlaSnapshotResponse>.Success(ToSlaSnapshotResponse(workOrder));
     }
 
@@ -681,7 +729,10 @@ public sealed class MaintenanceReliabilityService(
         var now = DateTime.UtcNow;
         var activeWorkOrders = await workOrders
             .Where(item => item.Status != WorkOrderStatus.Completed && item.Status != WorkOrderStatus.Cancelled)
-            .Where(item => item.SlaStatus == MaintenanceSlaStatus.WithinSla || item.SlaStatus == MaintenanceSlaStatus.ResponseBreached)
+            .Where(item => item.SlaStatus == MaintenanceSlaStatus.WithinSla
+                || item.SlaStatus == MaintenanceSlaStatus.ResponseBreached
+                || item.SlaStatus == MaintenanceSlaStatus.ResolutionBreached
+                || item.SlaStatus == MaintenanceSlaStatus.Escalated)
             .ToListAsync(cancellationToken);
 
         var updatedCount = 0;
@@ -689,11 +740,18 @@ public sealed class MaintenanceReliabilityService(
         {
             if (workOrder.ResolutionDueAtUtc.HasValue && workOrder.ResolutionDueAtUtc.Value < now)
             {
-                if (workOrder.SlaStatus != MaintenanceSlaStatus.ResolutionBreached)
+                if (workOrder.SlaStatus != MaintenanceSlaStatus.Escalated)
                 {
-                    workOrder.SlaStatus = MaintenanceSlaStatus.ResolutionBreached;
+                    workOrder.SlaStatus = MaintenanceSlaStatus.Escalated;
                     workOrder.SlaBreachedAtUtc ??= now;
-                    workOrder.SlaBreachReason = "Work order resolution SLA is breached.";
+                    workOrder.SlaBreachReason = "Work order resolution SLA is breached and requires escalation.";
+                    if (!workOrder.SlaEscalatedAtUtc.HasValue)
+                    {
+                        workOrder.SlaEscalatedAtUtc = now;
+                        workOrder.SlaEscalationCount += 1;
+                    }
+
+                    workOrder.LastSlaEscalatedAtUtc = now;
                     updatedCount++;
                 }
 
@@ -723,7 +781,8 @@ public sealed class MaintenanceReliabilityService(
         return ServiceResult<MaintenanceSlaRefreshResponse>.Success(new MaintenanceSlaRefreshResponse(
             query.CompoundId,
             await refreshed.CountAsync(item => item.SlaStatus == MaintenanceSlaStatus.ResponseBreached, cancellationToken),
-            await refreshed.CountAsync(item => item.SlaStatus == MaintenanceSlaStatus.ResolutionBreached, cancellationToken),
+            await refreshed.CountAsync(item => item.SlaStatus == MaintenanceSlaStatus.ResolutionBreached
+                || item.SlaStatus == MaintenanceSlaStatus.Escalated, cancellationToken),
             updatedCount));
     }
 
@@ -1140,6 +1199,30 @@ public sealed class MaintenanceReliabilityService(
         workOrder.SlaStatus = MaintenanceSlaStatus.WithinSla;
         workOrder.SlaBreachReason = null;
         workOrder.SlaBreachedAtUtc = null;
+        workOrder.SlaEscalatedAtUtc = null;
+        workOrder.LastSlaEscalatedAtUtc = null;
+        workOrder.SlaEscalationCount = 0;
+    }
+
+    private async Task<WorkOrder?> FindPreventiveWorkOrderByOccurrenceAsync(
+        Guid compoundId,
+        Guid planId,
+        string occurrenceKey,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.WorkOrders
+            .AsNoTracking()
+            .Include(item => item.MaintenanceSlaPolicy)
+            .FirstOrDefaultAsync(item => item.CompoundId == compoundId
+                && item.SourceType == WorkOrderSourceType.Other
+                && item.SourceEntityId == planId
+                && item.PreventiveMaintenanceOccurrenceKey == occurrenceKey,
+                cancellationToken);
+    }
+
+    private static string BuildPreventiveOccurrenceKey(Guid planId, DateTime scheduledAtUtc)
+    {
+        return $"PM:{planId:N}:{scheduledAtUtc.ToUniversalTime():yyyyMMddHHmmss}";
     }
 
     private static DateTime CalculateNextDue(DateTime currentDueAtUtc, PreventiveMaintenanceCadence cadence, int? customIntervalDays)
@@ -1216,19 +1299,47 @@ public sealed class MaintenanceReliabilityService(
     {
         if (staffMemberId.HasValue)
         {
-            var exists = await dbContext.StaffMembers.AsNoTracking().AnyAsync(item => item.Id == staffMemberId.Value, cancellationToken);
-            if (!exists)
+            var staff = await dbContext.StaffMembers
+                .AsNoTracking()
+                .Where(item => item.Id == staffMemberId.Value)
+                .Select(item => new { item.CompoundId, item.Status })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (staff is null)
             {
                 return "Assigned staff member was not found.";
+            }
+
+            if (staff.CompoundId != compoundId)
+            {
+                return "Assigned staff member must belong to the selected compound.";
+            }
+
+            if (staff.Status != StaffStatus.Active)
+            {
+                return "Only active staff members can be assigned.";
             }
         }
 
         if (vendorId.HasValue)
         {
-            var exists = await dbContext.ServiceVendors.AsNoTracking().AnyAsync(item => item.Id == vendorId.Value, cancellationToken);
-            if (!exists)
+            var vendor = await dbContext.ServiceVendors
+                .AsNoTracking()
+                .Where(item => item.Id == vendorId.Value)
+                .Select(item => new { item.CompoundId, item.Status })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (vendor is null)
             {
                 return "Assigned vendor was not found.";
+            }
+
+            if (vendor.CompoundId != compoundId)
+            {
+                return "Assigned vendor must belong to the selected compound.";
+            }
+
+            if (vendor.Status != VendorStatus.Active)
+            {
+                return "Only active vendors can be assigned.";
             }
         }
 
@@ -1637,4 +1748,3 @@ public sealed class MaintenanceReliabilityService(
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }
-

@@ -22,9 +22,13 @@ public sealed class ServiceVendor
 
     public string? Notes { get; set; }
 
+    public Guid CompoundId { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAtUtc { get; set; }
+
+    public Compound Compound { get; set; } = null!;
 
     public ICollection<WorkOrder> AssignedWorkOrders { get; set; } = new List<WorkOrder>();
 }

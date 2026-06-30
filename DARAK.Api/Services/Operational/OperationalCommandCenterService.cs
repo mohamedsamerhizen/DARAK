@@ -647,6 +647,15 @@ public sealed class OperationalCommandCenterService(
             return ServiceResult<OperationalTaskResponse>.NotFound("Operational task target compound was not found.");
         }
 
+        var assignmentValidation = await ValidateAssignedUserScopeAsync(
+            request.CompoundId,
+            request.AssignedToUserId,
+            cancellationToken);
+        if (assignmentValidation is not null)
+        {
+            return ServiceResult<OperationalTaskResponse>.BadRequest(assignmentValidation);
+        }
+
         var now = DateTime.UtcNow;
         var task = new OperationalTask
         {
@@ -1735,6 +1744,51 @@ public sealed class OperationalCommandCenterService(
         }
 
         return query;
+    }
+
+    private async Task<string?> ValidateAssignedUserScopeAsync(
+        Guid compoundId,
+        Guid? assignedToUserId,
+        CancellationToken cancellationToken)
+    {
+        if (!assignedToUserId.HasValue)
+        {
+            return null;
+        }
+
+        var userExists = await dbContext.Users
+            .AsNoTracking()
+            .AnyAsync(user => user.Id == assignedToUserId.Value, cancellationToken);
+        if (!userExists)
+        {
+            return "Assigned user was not found.";
+        }
+
+        var isSuperAdmin = await dbContext.UserRoles
+            .AsNoTracking()
+            .Join(
+                dbContext.Roles.AsNoTracking(),
+                userRole => userRole.RoleId,
+                role => role.Id,
+                (userRole, role) => new { userRole.UserId, role.Name })
+            .AnyAsync(item => item.UserId == assignedToUserId.Value
+                && item.Name == nameof(UserRole.SuperAdmin),
+                cancellationToken);
+        if (isSuperAdmin)
+        {
+            return null;
+        }
+
+        var hasCompoundAssignment = await dbContext.UserCompoundAssignments
+            .AsNoTracking()
+            .AnyAsync(assignment => assignment.UserId == assignedToUserId.Value
+                && assignment.CompoundId == compoundId
+                && assignment.IsActive,
+                cancellationToken);
+
+        return hasCompoundAssignment
+            ? null
+            : "Assigned user must have access to the operational task compound.";
     }
 
     private static string? ValidateCreateTaskRequest(CreateOperationalTaskRequest request)

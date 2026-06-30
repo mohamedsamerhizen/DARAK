@@ -33,6 +33,8 @@ public sealed class InventoryMovement
 
     public ApplicationUser? CreatedByUser { get; set; }
 
+    public string? Reference { get; set; }
+
     public string? Notes { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

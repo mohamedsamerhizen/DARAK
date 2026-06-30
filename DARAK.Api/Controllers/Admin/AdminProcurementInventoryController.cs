@@ -114,6 +114,30 @@ public sealed class AdminProcurementInventoryController(
             cancellationToken));
     }
 
+    [HttpPatch("purchase-orders/{id:guid}/approve")]
+    public async Task<ActionResult<PurchaseOrderResponse>> ApprovePurchaseOrder(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return ToActionResult(await procurementInventoryService.ApprovePurchaseOrderAsync(
+            id,
+            currentUserService.UserId,
+            cancellationToken));
+    }
+
+    [HttpPatch("purchase-orders/{id:guid}/cancel")]
+    public async Task<ActionResult<PurchaseOrderResponse>> CancelPurchaseOrder(
+        Guid id,
+        CancelPurchaseOrderRequest request,
+        CancellationToken cancellationToken)
+    {
+        return ToActionResult(await procurementInventoryService.CancelPurchaseOrderAsync(
+            id,
+            currentUserService.UserId,
+            request,
+            cancellationToken));
+    }
+
     [HttpPatch("purchase-orders/{purchaseOrderId:guid}/items/{itemId:guid}/receive")]
     public async Task<ActionResult<PurchaseOrderResponse>> ReceivePurchaseOrderItem(
         Guid purchaseOrderId,

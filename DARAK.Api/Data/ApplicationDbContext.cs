@@ -140,6 +140,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
     public DbSet<ContractorWorkPermit> ContractorWorkPermits => Set<ContractorWorkPermit>();
 
+    public DbSet<ContractorAccessLog> ContractorAccessLogs => Set<ContractorAccessLog>();
+
     public DbSet<AccessCredential> AccessCredentials => Set<AccessCredential>();
 
     public DbSet<MaintenanceRequest> MaintenanceRequests => Set<MaintenanceRequest>();
@@ -315,6 +317,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         ConfigureVisitorPass(builder);
         ConfigureVisitorAccessLog(builder);
         ConfigureContractorWorkPermit(builder);
+        ConfigureContractorAccessLog(builder);
         ConfigureAccessCredential(builder);
         ConfigureMaintenanceRequest(builder);
         ConfigureMaintenanceStatusHistory(builder);
@@ -3161,6 +3164,33 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         });
     }
 
+    private static void ConfigureContractorAccessLog(ModelBuilder builder)
+    {
+        builder.Entity<ContractorAccessLog>(entity =>
+        {
+            entity.ToTable("ContractorAccessLogs");
+            entity.HasKey(log => log.Id);
+
+            entity.Property(log => log.Notes)
+                .HasMaxLength(500);
+
+            entity.HasIndex(log => log.ContractorWorkPermitId);
+            entity.HasIndex(log => log.GuardUserId);
+            entity.HasIndex(log => log.Action);
+            entity.HasIndex(log => log.CreatedAtUtc);
+
+            entity.HasOne(log => log.ContractorWorkPermit)
+                .WithMany(permit => permit.AccessLogs)
+                .HasForeignKey(log => log.ContractorWorkPermitId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(log => log.GuardUser)
+                .WithMany()
+                .HasForeignKey(log => log.GuardUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
     private static void ConfigureAccessCredential(ModelBuilder builder)
     {
         builder.Entity<AccessCredential>(entity =>
@@ -3680,10 +3710,16 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .HasMaxLength(1000);
 
             entity.HasIndex(staffMember => staffMember.FullName);
+            entity.HasIndex(staffMember => staffMember.CompoundId);
             entity.HasIndex(staffMember => staffMember.PhoneNumber);
             entity.HasIndex(staffMember => staffMember.StaffType);
             entity.HasIndex(staffMember => staffMember.Status);
             entity.HasIndex(staffMember => staffMember.UserId);
+
+            entity.HasOne(staffMember => staffMember.Compound)
+                .WithMany()
+                .HasForeignKey(staffMember => staffMember.CompoundId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(staffMember => staffMember.User)
                 .WithMany()
@@ -3720,8 +3756,14 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .HasMaxLength(1000);
 
             entity.HasIndex(vendor => vendor.Name);
+            entity.HasIndex(vendor => vendor.CompoundId);
             entity.HasIndex(vendor => vendor.ServiceType);
             entity.HasIndex(vendor => vendor.Status);
+
+            entity.HasOne(vendor => vendor.Compound)
+                .WithMany()
+                .HasForeignKey(vendor => vendor.CompoundId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -3759,6 +3801,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(item => item.Notes)
                 .HasMaxLength(1000);
 
+            entity.Property(item => item.RowVersion)
+                .IsRowVersion();
+
             entity.HasIndex(item => item.CompoundId);
             entity.HasIndex(item => item.Status);
             entity.HasIndex(item => new { item.CompoundId, item.Sku }).IsUnique();
@@ -3784,6 +3829,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(movement => movement.UnitCost)
                 .HasPrecision(18, 2);
 
+            entity.Property(movement => movement.Reference)
+                .HasMaxLength(120);
+
             entity.Property(movement => movement.Notes)
                 .HasMaxLength(1000);
 
@@ -3793,6 +3841,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.HasIndex(movement => movement.PurchaseOrderItemId);
             entity.HasIndex(movement => movement.MovementType);
             entity.HasIndex(movement => movement.CreatedAtUtc);
+            entity.HasIndex(movement => new { movement.CompoundId, movement.Reference })
+                .IsUnique()
+                .HasFilter("[Reference] IS NOT NULL");
 
             entity.HasOne(movement => movement.Compound)
                 .WithMany()
@@ -4010,6 +4061,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(workOrder => workOrder.SlaBreachReason)
                 .HasMaxLength(1000);
 
+            entity.Property(workOrder => workOrder.PreventiveMaintenanceOccurrenceKey)
+                .HasMaxLength(100);
+
             entity.Property(workOrder => workOrder.RowVersion)
                 .IsRowVersion();
 
@@ -4027,6 +4081,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.HasIndex(workOrder => workOrder.SlaStatus);
             entity.HasIndex(workOrder => workOrder.ResponseDueAtUtc);
             entity.HasIndex(workOrder => workOrder.ResolutionDueAtUtc);
+            entity.HasIndex(workOrder => workOrder.SlaEscalatedAtUtc);
+            entity.HasIndex(workOrder => new { workOrder.CompoundId, workOrder.SourceType, workOrder.SourceEntityId, workOrder.PreventiveMaintenanceOccurrenceKey })
+                .IsUnique()
+                .HasFilter("[PreventiveMaintenanceOccurrenceKey] IS NOT NULL");
 
             entity.HasOne(workOrder => workOrder.AssignedStaffMember)
                 .WithMany(staffMember => staffMember.AssignedWorkOrders)
@@ -4251,6 +4309,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
             entity.Property(plan => plan.Notes)
                 .HasMaxLength(1000);
+
+            entity.Property(plan => plan.LastGeneratedOccurrenceKey)
+                .HasMaxLength(100);
 
             entity.HasIndex(plan => plan.CompoundId);
             entity.HasIndex(plan => plan.MaintenanceAssetId);
@@ -5154,7 +5215,3 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     }
 
 }
-
-
-
-

@@ -5,6 +5,7 @@ using DARAK.Api.Entities;
 using DARAK.Api.Enums;
 using DARAK.Api.Services;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace DARAK.Tests;
@@ -93,11 +94,38 @@ public sealed class ProcurementInventoryServiceTests
     }
 
     [Fact]
+    public async Task Phase8_IssueStockToWorkOrderAsync_RejectsOverspendAndKeepsStockNonNegative()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "PI-P8-NEG");
+        var service = CreateService(dbContext, compound.Id);
+        var stock = await service.CreateStockItemAsync(new CreateStockItemRequest
+        {
+            CompoundId = compound.Id,
+            Name = "Limited fuse",
+            Sku = "LIMITED-FUSE-01",
+            UnitOfMeasure = "pcs",
+            CurrentQuantity = 1,
+            MinimumQuantity = 0
+        });
+        var workOrder = await AddWorkOrderAsync(dbContext, compound.Id, "Use limited fuse");
+
+        var result = await service.IssueStockToWorkOrderAsync(
+            stock.Value!.Id,
+            Guid.NewGuid(),
+            new IssueStockToWorkOrderRequest { WorkOrderId = workOrder.Id, Quantity = 2 });
+
+        result.Status.Should().Be(ServiceResultStatus.Conflict);
+        dbContext.StockItems.Single(item => item.Id == stock.Value.Id).CurrentQuantity.Should().Be(1);
+        dbContext.StockItems.Single(item => item.Id == stock.Value.Id).CurrentQuantity.Should().BeGreaterThanOrEqualTo(0);
+    }
+
+    [Fact]
     public async Task PurchaseOrderReceiveAsync_IncreasesStockAndClosesOrderWhenFullyReceived()
     {
         await using var dbContext = TestDb.Create();
         var compound = await AddCompoundAsync(dbContext, "PI-4");
-        var vendor = await AddVendorAsync(dbContext, "Pump Parts Co");
+        var vendor = await AddVendorAsync(dbContext, compound.Id, "Pump Parts Co");
         var service = CreateService(dbContext, compound.Id);
         var stock = await service.CreateStockItemAsync(new CreateStockItemRequest
         {
@@ -158,6 +186,168 @@ public sealed class ProcurementInventoryServiceTests
         received.Value!.Status.Should().Be(PurchaseOrderStatus.Received);
         dbContext.StockItems.Single(item => item.Id == stock.Value.Id).CurrentQuantity.Should().Be(5);
         dbContext.InventoryMovements.Should().ContainSingle(item => item.MovementType == InventoryMovementType.ReceivedFromPurchaseOrder);
+    }
+
+    [Fact]
+    public async Task InventoryIssuePurchaseOrderApproveAndReceive_WriteAuditEntries()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "PI-AUDIT");
+        var vendor = await AddVendorAsync(dbContext, compound.Id, "Audit Supplier");
+        var service = CreateAuditedService(dbContext, compound.Id);
+        var stock = await service.CreateStockItemAsync(new CreateStockItemRequest
+        {
+            CompoundId = compound.Id,
+            Name = "Audit bearing",
+            Sku = "AUDIT-BRG-01",
+            UnitOfMeasure = "pcs",
+            CurrentQuantity = 5,
+            MinimumQuantity = 1,
+            AverageUnitCost = 10
+        });
+        var workOrder = await AddWorkOrderAsync(dbContext, compound.Id, "Audit work order");
+
+        await service.IssueStockToWorkOrderAsync(
+            stock.Value!.Id,
+            Guid.NewGuid(),
+            new IssueStockToWorkOrderRequest
+            {
+                WorkOrderId = workOrder.Id,
+                Quantity = 1,
+                UnitCost = 11,
+                Notes = "Audit material issue."
+            });
+        var purchaseOrder = await service.CreatePurchaseOrderAsync(Guid.NewGuid(), new CreatePurchaseOrderRequest
+        {
+            CompoundId = compound.Id,
+            VendorId = vendor.Id,
+            OrderNumber = "PO-AUDIT-1",
+            Status = PurchaseOrderStatus.Draft,
+            Items =
+            [
+                new CreatePurchaseOrderItemRequest
+                {
+                    StockItemId = stock.Value.Id,
+                    Description = "Audit bearing",
+                    QuantityOrdered = 2,
+                    UnitCost = 10
+                }
+            ]
+        });
+        var approved = await service.ApprovePurchaseOrderAsync(purchaseOrder.Value!.Id, Guid.NewGuid());
+        await service.ReceivePurchaseOrderItemAsync(
+            approved.Value!.Id,
+            approved.Value.Items.Single().Id,
+            Guid.NewGuid(),
+            new ReceivePurchaseOrderItemRequest { QuantityReceived = 2, ReceiptReference = "GRN-AUDIT-1" });
+
+        dbContext.AuditLogEntries.Should().Contain(item => item.ActionType == AuditActionType.InventoryIssued);
+        dbContext.AuditLogEntries.Should().Contain(item => item.ActionType == AuditActionType.PurchaseOrderApproved);
+        dbContext.AuditLogEntries.Should().Contain(item => item.ActionType == AuditActionType.PurchaseOrderReceived);
+    }
+
+    [Fact]
+    public async Task Phase8_ReceivePurchaseOrderItemAsync_ReusesReceiptReferenceWithoutDoubleIncreasingStock()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "PI-P8-REF");
+        var vendor = await AddVendorAsync(dbContext, compound.Id, "Reference Supplier");
+        var service = CreateService(dbContext, compound.Id);
+        var stock = await service.CreateStockItemAsync(new CreateStockItemRequest
+        {
+            CompoundId = compound.Id,
+            Name = "Reference bearing",
+            Sku = "REF-BRG-01",
+            UnitOfMeasure = "pcs",
+            CurrentQuantity = 0
+        });
+        var purchaseOrder = await service.CreatePurchaseOrderAsync(Guid.NewGuid(), new CreatePurchaseOrderRequest
+        {
+            CompoundId = compound.Id,
+            VendorId = vendor.Id,
+            OrderNumber = "PO-REF-1",
+            Items =
+            [
+                new CreatePurchaseOrderItemRequest
+                {
+                    StockItemId = stock.Value!.Id,
+                    Description = "Reference bearing",
+                    QuantityOrdered = 4,
+                    UnitCost = 10
+                }
+            ]
+        });
+        var itemId = purchaseOrder.Value!.Items.Single().Id;
+
+        var first = await service.ReceivePurchaseOrderItemAsync(
+            purchaseOrder.Value.Id,
+            itemId,
+            Guid.NewGuid(),
+            new ReceivePurchaseOrderItemRequest { QuantityReceived = 2, ReceiptReference = "GRN-REF-1" });
+        var retry = await service.ReceivePurchaseOrderItemAsync(
+            purchaseOrder.Value.Id,
+            itemId,
+            Guid.NewGuid(),
+            new ReceivePurchaseOrderItemRequest { QuantityReceived = 2, ReceiptReference = "GRN-REF-1" });
+
+        first.IsSuccess.Should().BeTrue(first.Message);
+        retry.IsSuccess.Should().BeTrue(retry.Message);
+        dbContext.StockItems.Single(item => item.Id == stock.Value.Id).CurrentQuantity.Should().Be(2);
+        dbContext.InventoryMovements.Count(item => item.Reference == "GRN-REF-1").Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Phase8_PurchaseOrderStateRules_BlockDraftReceiveAndReceivedCancel()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "PI-P8-STATE");
+        var vendor = await AddVendorAsync(dbContext, compound.Id, "State Supplier");
+        var service = CreateService(dbContext, compound.Id);
+        var stock = await service.CreateStockItemAsync(new CreateStockItemRequest
+        {
+            CompoundId = compound.Id,
+            Name = "State belt",
+            Sku = "STATE-BELT-01",
+            UnitOfMeasure = "pcs"
+        });
+        var draft = await service.CreatePurchaseOrderAsync(Guid.NewGuid(), new CreatePurchaseOrderRequest
+        {
+            CompoundId = compound.Id,
+            VendorId = vendor.Id,
+            OrderNumber = "PO-DRAFT-STATE",
+            Status = PurchaseOrderStatus.Draft,
+            Items =
+            [
+                new CreatePurchaseOrderItemRequest
+                {
+                    StockItemId = stock.Value!.Id,
+                    Description = "State belt",
+                    QuantityOrdered = 1,
+                    UnitCost = 5
+                }
+            ]
+        });
+
+        var draftReceive = await service.ReceivePurchaseOrderItemAsync(
+            draft.Value!.Id,
+            draft.Value.Items.Single().Id,
+            Guid.NewGuid(),
+            new ReceivePurchaseOrderItemRequest { QuantityReceived = 1 });
+        var approved = await service.ApprovePurchaseOrderAsync(draft.Value.Id, Guid.NewGuid());
+        var received = await service.ReceivePurchaseOrderItemAsync(
+            approved.Value!.Id,
+            approved.Value.Items.Single().Id,
+            Guid.NewGuid(),
+            new ReceivePurchaseOrderItemRequest { QuantityReceived = 1 });
+        var cancelReceived = await service.CancelPurchaseOrderAsync(
+            received.Value!.Id,
+            Guid.NewGuid(),
+            new CancelPurchaseOrderRequest { Reason = "No longer needed." });
+
+        draftReceive.Status.Should().Be(ServiceResultStatus.Conflict);
+        approved.Value!.Status.Should().Be(PurchaseOrderStatus.Approved);
+        received.Value!.Status.Should().Be(PurchaseOrderStatus.Received);
+        cancelReceived.Status.Should().Be(ServiceResultStatus.Conflict);
     }
 
     [Fact]
@@ -241,9 +431,77 @@ public sealed class ProcurementInventoryServiceTests
         summary.Value.TotalMaterialCost.Should().Be(12);
     }
 
+    [Fact]
+    public async Task CreatePurchaseOrderAsync_RejectsVendorFromDifferentCompound()
+    {
+        await using var dbContext = TestDb.Create();
+        var allowed = await AddCompoundAsync(dbContext, "PI-VS-A");
+        var denied = await AddCompoundAsync(dbContext, "PI-VS-D");
+        var vendor = await AddVendorAsync(dbContext, denied.Id, "Cross Compound Supplier");
+        var service = CreateService(dbContext, allowed.Id);
+        var stock = await service.CreateStockItemAsync(new CreateStockItemRequest
+        {
+            CompoundId = allowed.Id,
+            Name = "Cross vendor stock",
+            Sku = "CROSS-VENDOR-STOCK",
+            UnitOfMeasure = "pcs"
+        });
+        var procurement = await service.CreateProcurementRequestAsync(
+            Guid.NewGuid(),
+            new CreateProcurementRequestRequest
+            {
+                CompoundId = allowed.Id,
+                Title = "Cross vendor procurement",
+                Reason = "Tenant scoping check.",
+                Items =
+                [
+                    new CreateProcurementRequestItemRequest
+                    {
+                        StockItemId = stock.Value!.Id,
+                        Description = "Cross vendor stock",
+                        Quantity = 1,
+                        EstimatedUnitCost = 5
+                    }
+                ]
+            });
+        await service.ApproveProcurementRequestAsync(procurement.Value!.Id, Guid.NewGuid());
+
+        var result = await service.CreatePurchaseOrderAsync(
+            Guid.NewGuid(),
+            new CreatePurchaseOrderRequest
+            {
+                CompoundId = allowed.Id,
+                ProcurementRequestId = procurement.Value.Id,
+                VendorId = vendor.Id,
+                OrderNumber = "PO-CROSS-VENDOR",
+                Items =
+                [
+                    new CreatePurchaseOrderItemRequest
+                    {
+                        StockItemId = stock.Value.Id,
+                        Description = "Cross vendor stock",
+                        QuantityOrdered = 1,
+                        UnitCost = 5
+                    }
+                ]
+            });
+
+        result.Status.Should().Be(ServiceResultStatus.BadRequest);
+        result.Message.Should().Contain("selected compound");
+    }
+
     private static ProcurementInventoryService CreateService(ApplicationDbContext dbContext, Guid compoundId)
     {
         return new ProcurementInventoryService(dbContext, new FakeCompoundAccessService([compoundId]));
+    }
+
+    private static ProcurementInventoryService CreateAuditedService(ApplicationDbContext dbContext, Guid compoundId)
+    {
+        var compoundAccess = new FakeCompoundAccessService([compoundId]);
+        return new ProcurementInventoryService(
+            dbContext,
+            compoundAccess,
+            new AuditLogService(dbContext, compoundAccess, new HttpContextAccessor()));
     }
 
     private static async Task<Compound> AddCompoundAsync(ApplicationDbContext dbContext, string code)
@@ -262,10 +520,11 @@ public sealed class ProcurementInventoryServiceTests
         return compound;
     }
 
-    private static async Task<ServiceVendor> AddVendorAsync(ApplicationDbContext dbContext, string name)
+    private static async Task<ServiceVendor> AddVendorAsync(ApplicationDbContext dbContext, Guid compoundId, string name)
     {
         var vendor = new ServiceVendor
         {
+            CompoundId = compoundId,
             Name = name,
             PhoneNumber = "07700000000",
             ServiceType = VendorServiceType.Maintenance,

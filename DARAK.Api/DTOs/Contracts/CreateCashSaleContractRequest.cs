@@ -22,6 +22,9 @@ public sealed class CreateCashSaleContractRequest
     [Range(0.01, double.MaxValue)]
     public decimal PropertyPrice { get; init; }
 
+    [MaxLength(120)]
+    public string? IdempotencyKey { get; init; }
+
     [MaxLength(1000)]
     public string? Notes { get; init; }
 }

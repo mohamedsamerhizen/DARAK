@@ -574,6 +574,26 @@ public sealed class CollectionsLegalComplianceService(
         }
 
         var paymentAmount = Math.Round(request.Amount, 2);
+        var idempotencyKey = TrimOrNull(request.IdempotencyKey);
+        if (idempotencyKey is not null)
+        {
+            var existingPayment = await dbContext.Payments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(payment => payment.IdempotencyKey == idempotencyKey, cancellationToken);
+            if (existingPayment is not null)
+            {
+                if (existingPayment.TargetType != PaymentTargetType.PaymentPlanInstallment
+                    || existingPayment.TargetId != installment.Id
+                    || existingPayment.Amount != paymentAmount)
+                {
+                    return ServiceResult<PaymentPlanResponse>.Conflict(
+                        "Idempotency key is already used for a different payment plan installment payment.");
+                }
+
+                return ServiceResult<PaymentPlanResponse>.Success(ToPaymentPlanResponse(plan));
+            }
+        }
+
         var outstandingAmount = Math.Round(installment.Amount - installment.PaidAmount, 2);
         if (paymentAmount > outstandingAmount)
         {
@@ -596,6 +616,54 @@ public sealed class CollectionsLegalComplianceService(
             plan.CollectionCase.Stage = CollectionStage.Settlement;
             plan.CollectionCase.ClosedAtUtc = DateTime.UtcNow;
         }
+
+        var paidAtUtc = installment.PaidAtUtc ?? DateTime.UtcNow;
+        var payment = new Payment
+        {
+            CompoundId = plan.CompoundId,
+            ResidentProfileId = plan.ResidentProfileId,
+            TargetType = PaymentTargetType.PaymentPlanInstallment,
+            TargetId = installment.Id,
+            PaymentMethod = PaymentMethod.ManualAdminPayment,
+            PaymentStatus = PaymentStatus.Succeeded,
+            Amount = paymentAmount,
+            Currency = plan.Currency,
+            IdempotencyKey = idempotencyKey,
+            PaymentReference = await GenerateUniquePaymentReferenceAsync(cancellationToken),
+            CompletedAt = paidAtUtc,
+            Attempts =
+            [
+                new PaymentAttempt
+                {
+                    AttemptStatus = PaymentStatus.Succeeded,
+                    Provider = PaymentMethod.ManualAdminPayment.ToString(),
+                    Message = "Payment plan installment payment recorded."
+                }
+            ],
+            Receipt = new Receipt
+            {
+                ReceiptNumber = await GenerateUniqueReceiptNumberAsync(cancellationToken),
+                Amount = paymentAmount,
+                IssuedAt = paidAtUtc
+            }
+        };
+        payment.Receipt.PaymentId = payment.Id;
+
+        dbContext.Payments.Add(payment);
+        dbContext.ResidentLedgerEntries.Add(new ResidentLedgerEntry
+        {
+            CompoundId = plan.CompoundId,
+            ResidentProfileId = plan.ResidentProfileId,
+            Direction = FinancialLedgerEntryDirection.Credit,
+            SourceType = FinancialLedgerSourceType.Payment,
+            SourceId = payment.Id,
+            Amount = paymentAmount,
+            Currency = plan.Currency,
+            Reference = payment.PaymentReference,
+            Description = $"Payment plan installment #{installment.InstallmentNumber} payment received",
+            OccurredAtUtc = paidAtUtc,
+            CreatedAtUtc = DateTime.UtcNow
+        });
 
         plan.UpdatedAtUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -1997,6 +2065,30 @@ public sealed class CollectionsLegalComplianceService(
     {
         var value = TrimOrNull(currency)?.ToUpperInvariant() ?? "IQD";
         return value.Length == 3 ? value : "IQD";
+    }
+
+    private async Task<string> GenerateUniquePaymentReferenceAsync(CancellationToken cancellationToken)
+    {
+        string reference;
+        do
+        {
+            reference = $"PAY-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+        }
+        while (await dbContext.Payments.AsNoTracking().AnyAsync(payment => payment.PaymentReference == reference, cancellationToken));
+
+        return reference;
+    }
+
+    private async Task<string> GenerateUniqueReceiptNumberAsync(CancellationToken cancellationToken)
+    {
+        string receiptNumber;
+        do
+        {
+            receiptNumber = $"RCT-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+        }
+        while (await dbContext.Receipts.AsNoTracking().AnyAsync(receipt => receipt.ReceiptNumber == receiptNumber, cancellationToken));
+
+        return receiptNumber;
     }
 
     private static string? CombineNotes(string? existing, string? added)

@@ -5,5 +5,7 @@ public enum PaymentTargetType
     UtilityBill,
     PropertyInstallment,
     RentInvoice,
-    ViolationFine
+    ViolationFine,
+    PaymentPlanInstallment,
+    PropertySaleContract
 }

@@ -142,6 +142,97 @@ public sealed class PropertyContractsWorkflowTests
     }
 
     [Fact]
+    public async Task CreateCashSaleContractAsync_RecordsPaymentReceiptAndLedgerEntries()
+    {
+        await using var dbContext = TestDb.Create();
+        var seed = await SeedContractFoundationAsync(dbContext);
+        var service = CreateService(dbContext);
+
+        var result = await service.CreateCashSaleContractAsync(new CreateCashSaleContractRequest
+        {
+            CompoundId = seed.CompoundId,
+            PropertyUnitId = seed.UnitId,
+            ResidentProfileId = seed.ResidentProfileId,
+            ContractNumber = "SALE-CASH-001",
+            ContractDate = new DateOnly(2026, 1, 1),
+            PropertyPrice = 1000m,
+            IdempotencyKey = "cash-sale-key-1"
+        });
+
+        result.Status.Should().Be(ServiceResultStatus.Success);
+        var contract = await dbContext.PropertySaleContracts.SingleAsync();
+        var payment = await dbContext.Payments.SingleAsync();
+        payment.TargetType.Should().Be(PaymentTargetType.PropertySaleContract);
+        payment.TargetId.Should().Be(contract.Id);
+        payment.Amount.Should().Be(1000m);
+        payment.IdempotencyKey.Should().Be("cash-sale-key-1");
+        dbContext.Receipts.Should().ContainSingle(receipt => receipt.PaymentId == payment.Id);
+        dbContext.ResidentLedgerEntries.Should().Contain(entry =>
+            entry.Direction == FinancialLedgerEntryDirection.Debit
+            && entry.SourceType == FinancialLedgerSourceType.PropertySaleContract
+            && entry.SourceId == contract.Id
+            && entry.Amount == 1000m);
+        dbContext.ResidentLedgerEntries.Should().Contain(entry =>
+            entry.Direction == FinancialLedgerEntryDirection.Credit
+            && entry.SourceType == FinancialLedgerSourceType.Payment
+            && entry.SourceId == payment.Id
+            && entry.Amount == 1000m);
+    }
+
+    [Fact]
+    public async Task CreateInstallmentSaleContractAsync_RecordsDownPaymentAndRejectsDuplicateIdempotencyKey()
+    {
+        await using var dbContext = TestDb.Create();
+        var seed = await SeedContractFoundationAsync(dbContext);
+        var secondUnit = await AddAvailableUnitAsync(dbContext, seed.CompoundId, "C-102");
+        var service = CreateService(dbContext);
+
+        var first = await service.CreateInstallmentSaleContractAsync(new CreateInstallmentSaleContractRequest
+        {
+            CompoundId = seed.CompoundId,
+            PropertyUnitId = seed.UnitId,
+            ResidentProfileId = seed.ResidentProfileId,
+            ContractNumber = "SALE-DP-001",
+            ContractDate = new DateOnly(2026, 1, 1),
+            PropertyPrice = 1000m,
+            DownPaymentAmount = 100m,
+            DownPaymentIdempotencyKey = "down-payment-key-1",
+            InstallmentCount = 3,
+            FirstInstallmentDueDate = new DateOnly(2026, 2, 1)
+        });
+        var duplicateKey = await service.CreateInstallmentSaleContractAsync(new CreateInstallmentSaleContractRequest
+        {
+            CompoundId = seed.CompoundId,
+            PropertyUnitId = secondUnit.Id,
+            ResidentProfileId = seed.ResidentProfileId,
+            ContractNumber = "SALE-DP-002",
+            ContractDate = new DateOnly(2026, 1, 1),
+            PropertyPrice = 1000m,
+            DownPaymentAmount = 100m,
+            DownPaymentIdempotencyKey = "down-payment-key-1",
+            InstallmentCount = 3,
+            FirstInstallmentDueDate = new DateOnly(2026, 2, 1)
+        });
+
+        first.Status.Should().Be(ServiceResultStatus.Success);
+        duplicateKey.Status.Should().Be(ServiceResultStatus.Conflict);
+        var payment = await dbContext.Payments.SingleAsync();
+        payment.TargetType.Should().Be(PaymentTargetType.PropertySaleContract);
+        payment.Amount.Should().Be(100m);
+        payment.IdempotencyKey.Should().Be("down-payment-key-1");
+        dbContext.Receipts.Should().ContainSingle(receipt => receipt.PaymentId == payment.Id);
+        dbContext.ResidentLedgerEntries.Should().ContainSingle(entry =>
+            entry.Direction == FinancialLedgerEntryDirection.Credit
+            && entry.SourceType == FinancialLedgerSourceType.Payment
+            && entry.SourceId == payment.Id
+            && entry.Amount == 100m);
+        dbContext.ResidentLedgerEntries.Should().ContainSingle(entry =>
+            entry.Direction == FinancialLedgerEntryDirection.Debit
+            && entry.SourceType == FinancialLedgerSourceType.PropertySaleContract
+            && entry.Amount == 100m);
+    }
+
+    [Fact]
     public async Task CreateInstallmentSaleContractAsync_RejectsFirstInstallmentDueDateBeforeContractDate()
     {
         await using var dbContext = TestDb.Create();
@@ -249,6 +340,25 @@ public sealed class PropertyContractsWorkflowTests
         await dbContext.SaveChangesAsync();
 
         return new ContractSeed(compound.Id, unit.Id, resident.Id);
+    }
+
+    private static async Task<PropertyUnit> AddAvailableUnitAsync(
+        DARAK.Api.Data.ApplicationDbContext dbContext,
+        Guid compoundId,
+        string unitNumber)
+    {
+        var unit = new PropertyUnit
+        {
+            CompoundId = compoundId,
+            UnitNumber = unitNumber,
+            PropertyType = PropertyType.Apartment,
+            UnitStatus = UnitStatus.Available,
+            IsActive = true
+        };
+
+        dbContext.PropertyUnits.Add(unit);
+        await dbContext.SaveChangesAsync();
+        return unit;
     }
 
     private static RentContract SeedActiveRentContract(ContractSeed seed)

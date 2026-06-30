@@ -1,6 +1,7 @@
 **/.git
 **/.vs
 **/.vscode
+**/.idea
 **/bin
 **/obj
 **/TestResults
@@ -16,9 +17,19 @@
 !.env.example
 logs
 **/logs
+temp
+tmp
+**/temp
+**/tmp
 DARAK.Api/App_Data/Uploads
+DARAK.Api/App_Data/Exports
+DARAK.Api/App_Data/**/*.db
+DARAK.Api/App_Data/**/*.sqlite
+files
 _phase*
 _backup_phase*
+_backup_batch*
+_artifact-backup-*
 _ef_repair_backup_*
 *.bak
 DARAK-REMEDIATION-*

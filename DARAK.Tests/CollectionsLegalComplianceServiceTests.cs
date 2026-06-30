@@ -153,6 +153,60 @@ public sealed class CollectionsLegalComplianceServiceTests
     }
 
     [Fact]
+    public async Task PayPaymentPlanInstallmentAsync_RecordsPaymentReceiptLedgerAndReusesIdempotencyKey()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "CLC-PAY-PLAN");
+        var resident = await AddResidentAsync(dbContext, compound.Id, "Plan Payment Resident");
+        var service = CreateService(dbContext, compound.Id);
+        var collectionCase = await service.CreateCollectionCaseAsync(Guid.NewGuid(), new CreateCollectionCaseRequest
+        {
+            CompoundId = compound.Id,
+            ResidentProfileId = resident.Id,
+            AmountDue = 300_000m,
+            Reason = "Debt settlement"
+        });
+        var plan = await service.CreatePaymentPlanAsync(Guid.NewGuid(), new CreatePaymentPlanRequest
+        {
+            CollectionCaseId = collectionCase.Value!.Id,
+            TotalAmount = 300_000m,
+            InstallmentCount = 3,
+            StartDate = new DateOnly(2026, 7, 1)
+        });
+        var installment = plan.Value!.Installments.OrderBy(item => item.InstallmentNumber).First();
+
+        var first = await service.PayPaymentPlanInstallmentAsync(
+            plan.Value.Id,
+            installment.Id,
+            new PayPaymentPlanInstallmentRequest
+            {
+                Amount = installment.Amount,
+                IdempotencyKey = "plan-installment-idempotency-1"
+            });
+        var replay = await service.PayPaymentPlanInstallmentAsync(
+            plan.Value.Id,
+            installment.Id,
+            new PayPaymentPlanInstallmentRequest
+            {
+                Amount = installment.Amount,
+                IdempotencyKey = "plan-installment-idempotency-1"
+            });
+
+        first.Status.Should().Be(ServiceResultStatus.Success);
+        replay.Status.Should().Be(ServiceResultStatus.Success);
+        dbContext.Payments.Should().ContainSingle(payment =>
+            payment.TargetType == PaymentTargetType.PaymentPlanInstallment
+            && payment.TargetId == installment.Id
+            && payment.IdempotencyKey == "plan-installment-idempotency-1");
+        dbContext.Receipts.Should().ContainSingle();
+        dbContext.ResidentLedgerEntries.Should().ContainSingle(entry =>
+            entry.Direction == FinancialLedgerEntryDirection.Credit
+            && entry.SourceType == FinancialLedgerSourceType.Payment
+            && entry.SourceId == dbContext.Payments.Single().Id);
+        dbContext.PaymentPlanInstallments.Single(item => item.Id == installment.Id).PaidAmount.Should().Be(installment.Amount);
+    }
+
+    [Fact]
     public async Task GetResidentComplianceProfileAsync_ReturnsCriticalWhenCollectionsAndLegalNoticesExist()
     {
         await using var dbContext = TestDb.Create();

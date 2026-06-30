@@ -70,5 +70,14 @@ public enum AuditActionType
     FinancialDisputeOpened = 66,
     FinancialDisputeStatusChanged = 67,
     ViolationAppealOpened = 68,
-    ViolationAppealStatusChanged = 69
+    ViolationAppealStatusChanged = 69,
+    AnnouncementPublished = 70,
+    UtilityOutagePublished = 71,
+    PurchaseOrderApproved = 72,
+    PurchaseOrderCancelled = 73,
+    PurchaseOrderReceived = 74,
+    InventoryIssued = 75,
+    InventoryAdjusted = 76,
+    StaffMemberChanged = 77,
+    ServiceVendorChanged = 78
 }

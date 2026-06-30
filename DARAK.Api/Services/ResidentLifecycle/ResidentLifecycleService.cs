@@ -165,6 +165,21 @@ public sealed class ResidentLifecycleService(
             return ServiceResult<ResidentLifecycleProcessResponse>.Conflict("Completed or cancelled lifecycle processes cannot be updated.");
         }
 
+        if (process.ProcessType == ResidentLifecycleProcessType.MoveOut)
+        {
+            var blockers = await GetMoveOutFinancialBlockerSummaryAsync(process, cancellationToken);
+            if (blockers.HasBlockers)
+            {
+                process.Status = ResidentLifecycleStatus.PendingFinancialClearance;
+                process.FinancialClearanceConfirmed = false;
+                process.FinancialClearanceConfirmedAtUtc = null;
+                process.FinancialClearanceConfirmedByUserId = null;
+                process.UpdatedAtUtc = DateTime.UtcNow;
+                await dbContext.SaveChangesAsync(cancellationToken);
+                return ServiceResult<ResidentLifecycleProcessResponse>.BadRequest(blockers.ToMessage());
+            }
+        }
+
         process.FinancialClearanceConfirmed = true;
         process.FinancialClearanceConfirmedAtUtc = DateTime.UtcNow;
         process.FinancialClearanceConfirmedByUserId = currentUserId.Value;
@@ -215,6 +230,18 @@ public sealed class ResidentLifecycleService(
 
         if (process.ProcessType == ResidentLifecycleProcessType.MoveOut)
         {
+            var financialBlockers = await GetMoveOutFinancialBlockerSummaryAsync(process, cancellationToken);
+            if (financialBlockers.HasBlockers)
+            {
+                process.Status = ResidentLifecycleStatus.PendingFinancialClearance;
+                process.FinancialClearanceConfirmed = false;
+                process.FinancialClearanceConfirmedAtUtc = null;
+                process.FinancialClearanceConfirmedByUserId = null;
+                process.UpdatedAtUtc = DateTime.UtcNow;
+                await dbContext.SaveChangesAsync(cancellationToken);
+                return ServiceResult<ResidentLifecycleProcessResponse>.BadRequest(financialBlockers.ToMessage());
+            }
+
             if (process.FinancialClearanceRequired && !process.FinancialClearanceConfirmed)
             {
                 process.Status = ResidentLifecycleStatus.PendingFinancialClearance;
@@ -1659,6 +1686,31 @@ public sealed class ResidentLifecycleService(
                 dispute?.Status));
         }
 
+        var paymentPlanInstallments = await dbContext.PaymentPlanInstallments.AsNoTracking()
+            .Where(item =>
+                item.PaymentPlan.CompoundId == validation.CompoundId
+                && item.PaymentPlan.ResidentProfileId == query.ResidentProfileId
+                && item.PaymentPlan.Status == PaymentPlanStatus.Active
+                && item.Status != PaymentPlanInstallmentStatus.Paid
+                && item.Status != PaymentPlanInstallmentStatus.Cancelled
+                && item.Amount > item.PaidAmount)
+            .ToListAsync(cancellationToken);
+        foreach (var installment in paymentPlanInstallments)
+        {
+            financialItems.Add(new MoveOutReadinessFinancialItemResponse(
+                FinancialLedgerSourceType.PaymentPlanInstallment,
+                installment.Id,
+                $"Payment plan installment #{installment.InstallmentNumber}",
+                installment.DueDate,
+                installment.Amount,
+                installment.PaidAmount,
+                Math.Max(0, installment.Amount - installment.PaidAmount),
+                installment.DueDate < asOfDate,
+                false,
+                null,
+                null));
+        }
+
         var violationFines = await dbContext.ViolationFines.AsNoTracking()
             .Where(item =>
                 item.CompoundId == validation.CompoundId
@@ -1699,6 +1751,14 @@ public sealed class ResidentLifecycleService(
                 || item.Status == CollectionCaseStatus.PaymentPlanActive),
             cancellationToken);
 
+        var activeLegalNoticeCount = await dbContext.LegalNotices.AsNoTracking().CountAsync(item =>
+            item.CompoundId == validation.CompoundId
+            && item.ResidentProfileId == query.ResidentProfileId
+            && (item.Status == LegalNoticeStatus.Draft
+                || item.Status == LegalNoticeStatus.Issued
+                || item.Status == LegalNoticeStatus.Delivered),
+            cancellationToken);
+
         var activeRentContractCount = await dbContext.RentContracts.AsNoTracking().CountAsync(item =>
             item.CompoundId == validation.CompoundId
             && item.PropertyUnitId == query.PropertyUnitId
@@ -1730,7 +1790,10 @@ public sealed class ResidentLifecycleService(
             cancellationToken);
 
         var outstandingAmount = financialItems.Sum(item => item.OutstandingAmount);
-        var hasFinancialBlockers = outstandingAmount > 0 || activeDisputes.Count > 0 || openCollectionCaseCount > 0;
+        var hasFinancialBlockers = outstandingAmount > 0
+            || activeDisputes.Count > 0
+            || openCollectionCaseCount > 0
+            || activeLegalNoticeCount > 0;
         var hasOperationalBlockers = !hasActiveOccupancy
             || activeMoveOutProcess is not null
             || activeRentContractCount > 0
@@ -1738,7 +1801,10 @@ public sealed class ResidentLifecycleService(
             || issuedCustodyItemCount > 0
             || openDamageLiabilityCount > 0;
         var canStartMoveOutProcess = hasActiveOccupancy && activeMoveOutProcess is null;
-        var canConfirmFinancialClearance = financialItems.Count == 0 && activeDisputes.Count == 0 && openCollectionCaseCount == 0;
+        var canConfirmFinancialClearance = financialItems.Count == 0
+            && activeDisputes.Count == 0
+            && openCollectionCaseCount == 0
+            && activeLegalNoticeCount == 0;
         var canCompleteMoveOutNow = hasActiveOccupancy
             && activeMoveOutProcess is not null
             && canConfirmFinancialClearance
@@ -1754,6 +1820,7 @@ public sealed class ResidentLifecycleService(
             financialItems.Count,
             activeDisputes.Count,
             openCollectionCaseCount,
+            activeLegalNoticeCount,
             activeRentContractCount,
             activeSaleContractCount,
             issuedCustodyItemCount,
@@ -1845,6 +1912,109 @@ public sealed class ResidentLifecycleService(
         }
 
         return (true, unit.CompoundId, null);
+    }
+
+    private async Task<MoveOutFinancialBlockerSummary> GetMoveOutFinancialBlockerSummaryAsync(
+        ResidentLifecycleProcess process,
+        CancellationToken cancellationToken)
+    {
+        var utilityBills = await dbContext.UtilityBills.AsNoTracking()
+            .Where(item =>
+                item.CompoundId == process.CompoundId
+                && item.PropertyUnitId == process.PropertyUnitId
+                && item.ResidentProfileId == process.ResidentProfileId
+                && item.BillStatus != BillStatus.Paid
+                && item.BillStatus != BillStatus.Cancelled
+                && item.TotalAmount > item.PaidAmount)
+            .Select(item => new { item.TotalAmount, item.PaidAmount })
+            .ToListAsync(cancellationToken);
+
+        var rentInvoices = await dbContext.RentInvoices.AsNoTracking()
+            .Where(item =>
+                item.CompoundId == process.CompoundId
+                && item.PropertyUnitId == process.PropertyUnitId
+                && item.ResidentProfileId == process.ResidentProfileId
+                && item.RentInvoiceStatus != RentInvoiceStatus.Paid
+                && item.RentInvoiceStatus != RentInvoiceStatus.Cancelled
+                && item.TotalAmount > item.PaidAmount)
+            .Select(item => new { item.TotalAmount, item.PaidAmount })
+            .ToListAsync(cancellationToken);
+
+        var propertyInstallments = await dbContext.InstallmentScheduleItems.AsNoTracking()
+            .Where(item =>
+                item.CompoundId == process.CompoundId
+                && item.PropertyUnitId == process.PropertyUnitId
+                && item.ResidentProfileId == process.ResidentProfileId
+                && item.InstallmentStatus != InstallmentStatus.Paid
+                && item.InstallmentStatus != InstallmentStatus.Cancelled
+                && item.Amount > item.PaidAmount)
+            .Select(item => new { item.Amount, item.PaidAmount })
+            .ToListAsync(cancellationToken);
+
+        var paymentPlanInstallments = await dbContext.PaymentPlanInstallments.AsNoTracking()
+            .Where(item =>
+                item.PaymentPlan.CompoundId == process.CompoundId
+                && item.PaymentPlan.ResidentProfileId == process.ResidentProfileId
+                && item.PaymentPlan.Status == PaymentPlanStatus.Active
+                && item.Status != PaymentPlanInstallmentStatus.Paid
+                && item.Status != PaymentPlanInstallmentStatus.Cancelled
+                && item.Amount > item.PaidAmount)
+            .Select(item => new { item.Amount, item.PaidAmount })
+            .ToListAsync(cancellationToken);
+
+        var violationFines = await dbContext.ViolationFines.AsNoTracking()
+            .Where(item =>
+                item.CompoundId == process.CompoundId
+                && item.ResidentProfileId == process.ResidentProfileId
+                && item.Status != ViolationFineStatus.Paid
+                && item.Status != ViolationFineStatus.Cancelled
+                && item.Amount > item.PaidAmount)
+            .Select(item => new { item.Amount, item.PaidAmount })
+            .ToListAsync(cancellationToken);
+
+        var activeFinancialDisputeCount = await dbContext.FinancialDisputes.AsNoTracking().CountAsync(item =>
+            item.CompoundId == process.CompoundId
+            && item.ResidentProfileId == process.ResidentProfileId
+            && (item.Status == FinancialDisputeStatus.Open
+                || item.Status == FinancialDisputeStatus.UnderReview
+                || item.Status == FinancialDisputeStatus.NeedResidentResponse
+                || item.Status == FinancialDisputeStatus.Accepted),
+            cancellationToken);
+
+        var activeCollectionCaseCount = await dbContext.CollectionCases.AsNoTracking().CountAsync(item =>
+            item.CompoundId == process.CompoundId
+            && item.ResidentProfileId == process.ResidentProfileId
+            && (item.Status == CollectionCaseStatus.Open
+                || item.Status == CollectionCaseStatus.Paused
+                || item.Status == CollectionCaseStatus.LegalEscalated
+                || item.Status == CollectionCaseStatus.PaymentPlanActive),
+            cancellationToken);
+
+        var activeLegalNoticeCount = await dbContext.LegalNotices.AsNoTracking().CountAsync(item =>
+            item.CompoundId == process.CompoundId
+            && item.ResidentProfileId == process.ResidentProfileId
+            && (item.Status == LegalNoticeStatus.Draft
+                || item.Status == LegalNoticeStatus.Issued
+                || item.Status == LegalNoticeStatus.Delivered),
+            cancellationToken);
+
+        var outstandingAmount =
+            utilityBills.Sum(item => Math.Max(0, item.TotalAmount - item.PaidAmount))
+            + rentInvoices.Sum(item => Math.Max(0, item.TotalAmount - item.PaidAmount))
+            + propertyInstallments.Sum(item => Math.Max(0, item.Amount - item.PaidAmount))
+            + paymentPlanInstallments.Sum(item => Math.Max(0, item.Amount - item.PaidAmount))
+            + violationFines.Sum(item => Math.Max(0, item.Amount - item.PaidAmount));
+
+        return new MoveOutFinancialBlockerSummary(
+            outstandingAmount,
+            utilityBills.Count,
+            rentInvoices.Count,
+            propertyInstallments.Count,
+            paymentPlanInstallments.Count,
+            violationFines.Count,
+            activeFinancialDisputeCount,
+            activeCollectionCaseCount,
+            activeLegalNoticeCount);
     }
 
     private async Task<bool> CanAccessCompoundAsync(Guid compoundId, CancellationToken cancellationToken)
@@ -1989,6 +2159,7 @@ public sealed class ResidentLifecycleService(
         int outstandingItemCount,
         int activeFinancialDisputeCount,
         int openCollectionCaseCount,
+        int activeLegalNoticeCount,
         int activeRentContractCount,
         int activeSaleContractCount,
         int issuedCustodyItemCount,
@@ -2039,6 +2210,15 @@ public sealed class ResidentLifecycleService(
                 "High",
                 $"There are {openCollectionCaseCount} open collection cases.",
                 "Close, settle, or formally pause collection cases before final move-out approval."));
+        }
+
+        if (activeLegalNoticeCount > 0)
+        {
+            blockers.Add(new MoveOutReadinessBlockerResponse(
+                "ACTIVE_LEGAL_NOTICES",
+                "High",
+                $"There are {activeLegalNoticeCount} active legal notices.",
+                "Acknowledge, cancel, or expire active legal notices before confirming financial clearance."));
         }
 
         if (activeRentContractCount > 0)
@@ -2197,5 +2377,54 @@ public sealed class ResidentLifecycleService(
     private static string? TrimOptional(string? value)
     {
         return TrimOrNull(value);
+    }
+
+    private sealed record MoveOutFinancialBlockerSummary(
+        decimal OutstandingAmount,
+        int UtilityBillCount,
+        int RentInvoiceCount,
+        int PropertyInstallmentCount,
+        int PaymentPlanInstallmentCount,
+        int ViolationFineCount,
+        int ActiveFinancialDisputeCount,
+        int ActiveCollectionCaseCount,
+        int ActiveLegalNoticeCount)
+    {
+        public bool HasBlockers =>
+            OutstandingAmount > 0
+            || ActiveFinancialDisputeCount > 0
+            || ActiveCollectionCaseCount > 0
+            || ActiveLegalNoticeCount > 0;
+
+        public string ToMessage()
+        {
+            var parts = new List<string>();
+            if (OutstandingAmount > 0)
+            {
+                var itemCount = UtilityBillCount
+                    + RentInvoiceCount
+                    + PropertyInstallmentCount
+                    + PaymentPlanInstallmentCount
+                    + ViolationFineCount;
+                parts.Add($"outstanding amount {OutstandingAmount:0.##} across {itemCount} financial items");
+            }
+
+            if (ActiveFinancialDisputeCount > 0)
+            {
+                parts.Add($"{ActiveFinancialDisputeCount} active financial disputes");
+            }
+
+            if (ActiveCollectionCaseCount > 0)
+            {
+                parts.Add($"{ActiveCollectionCaseCount} active collection cases");
+            }
+
+            if (ActiveLegalNoticeCount > 0)
+            {
+                parts.Add($"{ActiveLegalNoticeCount} active legal notices");
+            }
+
+            return $"Move-out financial clearance is blocked: {string.Join("; ", parts)}.";
+        }
     }
 }

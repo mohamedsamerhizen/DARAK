@@ -1,3 +1,4 @@
+using DARAK.Api.Authentication;
 using DARAK.Api.DTOs;
 using DARAK.Api.Enums;
 using DARAK.Api.Helpers;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace DARAK.Api.Controllers;
 
@@ -14,7 +16,8 @@ namespace DARAK.Api.Controllers;
 [Route("api/auth")]
 public sealed class AuthController(
     UserManager<ApplicationUser> userManager,
-    IRefreshTokenService refreshTokenService)
+    IRefreshTokenService refreshTokenService,
+    IOptions<RegistrationOptions> registrationOptionsAccessor)
     : ControllerBase
 {
     [AllowAnonymous]
@@ -24,6 +27,16 @@ public sealed class AuthController(
         RegisterRequest request,
         CancellationToken cancellationToken)
     {
+        var registrationOptions = registrationOptionsAccessor.Value;
+        if (!registrationOptions.EnablePublicRegistration)
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                ApiErrorResponseFactory.Create(
+                    HttpContext,
+                    "Public registration is disabled. Contact an administrator for account provisioning."));
+        }
+
         var existingUser = await userManager.FindByEmailAsync(request.Email);
         if (existingUser is not null)
         {
@@ -35,7 +48,7 @@ public sealed class AuthController(
             FullName = request.FullName.Trim(),
             Email = request.Email.Trim(),
             UserName = request.Email.Trim(),
-            EmailConfirmed = false,
+            EmailConfirmed = registrationOptions.AutoConfirmRegisteredUsers,
             LockoutEnabled = true
         };
 
@@ -74,7 +87,9 @@ public sealed class AuthController(
 
         return Accepted(new
         {
-            message = "Registration received. Email confirmation is required before login."
+            message = registrationOptions.AutoConfirmRegisteredUsers
+                ? "Registration completed. You can now log in."
+                : "Registration received. Account confirmation or administrator provisioning is required before login."
         });
     }
 
@@ -192,4 +207,3 @@ public sealed class AuthController(
                 group => group.Select(error => error.Description).ToArray());
     }
 }
-

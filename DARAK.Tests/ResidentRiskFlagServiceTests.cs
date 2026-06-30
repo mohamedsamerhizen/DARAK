@@ -3,6 +3,7 @@ using DARAK.Api.DTOs.Common;
 using DARAK.Api.DTOs.RiskFlags;
 using DARAK.Api.Entities;
 using DARAK.Api.Enums;
+using DARAK.Api.Helpers;
 using DARAK.Api.Identity;
 using DARAK.Api.Services;
 using FluentAssertions;
@@ -89,6 +90,43 @@ public sealed class ResidentRiskFlagServiceTests
             NewCreateRequest(compound.Id, resident.Id));
 
         result.Status.Should().Be(ServiceResultStatus.Forbidden);
+    }
+
+    [Fact]
+    public async Task Accountant_CannotCreateOrManageRiskFlags()
+    {
+        RoleNames.RiskFlagManagers.Split(',').Should().NotContain(nameof(UserRole.Accountant));
+
+        await using var dbContext = TestDb.Create();
+        var identity = await CreateIdentityAsync(dbContext);
+        var compound = await AddCompoundAsync(dbContext, "RF3A");
+        var accountant = await CreateUserWithRoleAsync(identity.UserManager, "accountant3a-risk@darak.test", UserRole.Accountant);
+        var admin = await CreateUserWithRoleAsync(identity.UserManager, "admin3a-risk@darak.test", UserRole.CompoundAdmin);
+        var residentUser = await CreateUserWithRoleAsync(identity.UserManager, "resident3a@darak.test", UserRole.Resident);
+        var resident = await AddResidentAsync(dbContext, compound.Id, residentUser.Id, "Resident Three A");
+        var flag = NewFlag(compound.Id, resident.Id, admin.Id);
+        dbContext.ResidentRiskFlags.Add(flag);
+        await dbContext.SaveChangesAsync();
+        var service = CreateService(dbContext, identity.UserManager, [compound.Id]);
+
+        var create = await service.CreateFlagAsync(accountant.Id, NewCreateRequest(compound.Id, resident.Id));
+        var changeSeverity = await service.ChangeSeverityAsync(
+            accountant.Id,
+            flag.Id,
+            new ChangeResidentRiskFlagSeverityRequest
+            {
+                Severity = ResidentRiskFlagSeverity.Critical,
+                Notes = "Accountant should not manage risk."
+            });
+        var addNote = await service.AddNoteAsync(
+            accountant.Id,
+            flag.Id,
+            new AddResidentRiskFlagNoteRequest { Notes = "Accountant note." });
+
+        create.Status.Should().Be(ServiceResultStatus.Forbidden);
+        changeSeverity.Status.Should().Be(ServiceResultStatus.Forbidden);
+        addNote.Status.Should().Be(ServiceResultStatus.Forbidden);
+        dbContext.ResidentRiskFlagActions.Should().BeEmpty();
     }
 
     [Fact]

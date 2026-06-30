@@ -1,4 +1,5 @@
 using DARAK.Api.Data;
+using DARAK.Api.DTOs.Audit;
 using DARAK.Api.DTOs.Common;
 using DARAK.Api.DTOs.Communication;
 using DARAK.Api.Entities;
@@ -10,7 +11,8 @@ namespace DARAK.Api.Services;
 
 public sealed class AnnouncementService(
     ApplicationDbContext dbContext,
-    ICompoundAccessService? compoundAccessService = null)
+    ICompoundAccessService? compoundAccessService = null,
+    IAuditLogService? auditLogService = null)
     : IAnnouncementService
 {
     public async Task<PagedResult<AnnouncementResponse>> SearchAnnouncementsAsync(
@@ -240,6 +242,8 @@ public sealed class AnnouncementService(
             return ServiceResult<AnnouncementResponse>.BadRequest("Archived announcements cannot be published.");
         }
 
+        var wasAlreadyPublished = announcement.Status == AnnouncementStatus.Published
+            && announcement.PublishedAt.HasValue;
         var publishedAt = request.PublishedAt ?? DateTime.UtcNow;
         var expiresAt = request.ExpiresAt ?? announcement.ExpiresAt;
         if (expiresAt.HasValue && expiresAt.Value <= publishedAt)
@@ -251,6 +255,26 @@ public sealed class AnnouncementService(
         announcement.PublishedAt = publishedAt;
         announcement.ExpiresAt = expiresAt;
         announcement.UpdatedAt = DateTime.UtcNow;
+
+        if (!wasAlreadyPublished)
+        {
+            await AddAnnouncementNotificationsAsync(announcement, publishedAt, cancellationToken);
+
+            if (auditLogService is not null)
+            {
+                await auditLogService.AppendEntryAsync(new AuditLogRecord(
+                    CompoundId: announcement.CompoundId,
+                    ResidentProfileId: null,
+                    ActorUserId: announcement.CreatedByUserId,
+                    ActorRole: null,
+                    ActionType: AuditActionType.AnnouncementPublished,
+                    EntityType: AuditEntityType.Announcement,
+                    EntityId: announcement.Id,
+                    Severity: announcement.Priority == AnnouncementPriority.Critical ? AuditSeverity.High : AuditSeverity.Medium,
+                    SourceModule: "Communication",
+                    Description: "Announcement published and resident notifications queued."), cancellationToken);
+            }
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -360,6 +384,113 @@ public sealed class AnnouncementService(
         }
 
         return announcements.Where(announcement => scope.AllowedCompoundIds.Contains(announcement.CompoundId));
+    }
+
+    private async Task AddAnnouncementNotificationsAsync(
+        Announcement announcement,
+        DateTime scheduledAtUtc,
+        CancellationToken cancellationToken)
+    {
+        if (announcement.Audience is AnnouncementAudience.Admins or AnnouncementAudience.Managers)
+        {
+            return;
+        }
+
+        var recipients = await dbContext.OccupancyRecords
+            .AsNoTracking()
+            .Where(record =>
+                record.CompoundId == announcement.CompoundId
+                && record.OccupancyStatus == OccupancyStatus.Active
+                && record.ResidentProfile.IsActive)
+            .Select(record => new
+            {
+                record.ResidentProfileId,
+                record.ResidentProfile.UserId,
+                record.ResidentProfile.FullName,
+                record.ResidentProfile.PhoneNumber,
+                record.OccupancyType
+            })
+            .ToListAsync(cancellationToken);
+
+        var scopedRecipients = recipients
+            .Where(recipient => announcement.Audience switch
+            {
+                AnnouncementAudience.Tenants => recipient.OccupancyType == OccupancyType.Tenant,
+                AnnouncementAudience.Owners => recipient.OccupancyType is OccupancyType.OwnerCash or OccupancyType.OwnerInstallment,
+                _ => true
+            })
+            .GroupBy(recipient => recipient.UserId)
+            .Select(group => group.First())
+            .ToArray();
+
+        if (scopedRecipients.Length == 0)
+        {
+            return;
+        }
+
+        var userIds = scopedRecipients.Select(recipient => recipient.UserId).ToArray();
+        var preferences = await dbContext.ResidentNotificationPreferences
+            .Where(preference => userIds.Contains(preference.UserId))
+            .ToDictionaryAsync(preference => preference.UserId, cancellationToken);
+
+        var notificationPriority = announcement.Priority switch
+        {
+            AnnouncementPriority.Critical => NotificationPriority.Urgent,
+            AnnouncementPriority.High => NotificationPriority.High,
+            AnnouncementPriority.Low => NotificationPriority.Low,
+            _ => NotificationPriority.Normal
+        };
+        var severity = announcement.Category == AnnouncementCategory.Emergency
+            || announcement.Priority == AnnouncementPriority.Critical
+                ? ResidentNotificationSeverity.Critical
+                : announcement.Priority == AnnouncementPriority.High
+                    ? ResidentNotificationSeverity.Warning
+                    : ResidentNotificationSeverity.Info;
+
+        foreach (var recipient in scopedRecipients)
+        {
+            preferences.TryGetValue(recipient.UserId, out var preference);
+            var suppressionReason = ResidentNotificationPreferencePolicy.GetSuppressionReason(
+                preference,
+                ResidentNotificationType.Announcement,
+                severity,
+                notificationPriority,
+                scheduledAtUtc);
+            if (suppressionReason is not null)
+            {
+                continue;
+            }
+
+            dbContext.ResidentNotifications.Add(new ResidentNotification
+            {
+                UserId = recipient.UserId,
+                Title = announcement.Title,
+                Message = announcement.Body,
+                Type = ResidentNotificationType.Announcement,
+                Severity = severity,
+                RelatedEntityType = nameof(Announcement),
+                RelatedEntityId = announcement.Id,
+                CreatedAt = scheduledAtUtc
+            });
+
+            dbContext.NotificationOutboxes.Add(new NotificationOutbox
+            {
+                CompoundId = announcement.CompoundId,
+                ResidentProfileId = recipient.ResidentProfileId,
+                RecipientUserId = recipient.UserId,
+                Channel = NotificationChannel.InApp,
+                EventType = NotificationEventType.AnnouncementPublished,
+                Priority = notificationPriority,
+                RecipientName = recipient.FullName,
+                RecipientPhoneNumber = recipient.PhoneNumber,
+                Subject = announcement.Title,
+                Body = announcement.Body,
+                RelatedEntityType = NotificationRelatedEntityType.Announcement,
+                RelatedEntityId = announcement.Id,
+                ScheduledAtUtc = scheduledAtUtc,
+                CreatedByUserId = announcement.CreatedByUserId
+            });
+        }
     }
 
     private async Task<IQueryable<CommunityPoll>> ApplyCurrentPollCompoundAccessAsync(

@@ -36,6 +36,8 @@ public sealed class PreventiveMaintenancePlan
 
     public DateTime? LastGeneratedAtUtc { get; set; }
 
+    public string? LastGeneratedOccurrenceKey { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public string? Notes { get; set; }

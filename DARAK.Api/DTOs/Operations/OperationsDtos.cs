@@ -6,6 +6,7 @@ namespace DARAK.Api.DTOs.Operations;
 
 public sealed record StaffMemberResponse(
     Guid Id,
+    Guid CompoundId,
     string FullName,
     string PhoneNumber,
     string? Email,
@@ -20,6 +21,7 @@ public sealed record StaffMemberResponse(
 
 public sealed record ServiceVendorResponse(
     Guid Id,
+    Guid CompoundId,
     string Name,
     string? ContactPersonName,
     string PhoneNumber,
@@ -93,6 +95,8 @@ public sealed record WorkOrderResponse(
 
 public sealed class StaffMemberQueryRequest : PaginationQuery
 {
+    public Guid? CompoundId { get; init; }
+
     public StaffType? StaffType { get; init; }
 
     public StaffStatus? Status { get; init; }
@@ -103,6 +107,8 @@ public sealed class StaffMemberQueryRequest : PaginationQuery
 
 public sealed class ServiceVendorQueryRequest : PaginationQuery
 {
+    public Guid? CompoundId { get; init; }
+
     public VendorServiceType? ServiceType { get; init; }
 
     public VendorStatus? Status { get; init; }
@@ -143,6 +149,8 @@ public sealed class WorkOrderStatusHistoryQueryRequest : PaginationQuery
 
 public sealed class CreateStaffMemberRequest
 {
+    public Guid CompoundId { get; init; }
+
     [Required]
     [MaxLength(150)]
     public string FullName { get; init; } = string.Empty;
@@ -172,6 +180,8 @@ public sealed class CreateStaffMemberRequest
 
 public sealed class UpdateStaffMemberRequest
 {
+    public Guid CompoundId { get; init; }
+
     [Required]
     [MaxLength(150)]
     public string FullName { get; init; } = string.Empty;
@@ -201,6 +211,8 @@ public sealed class UpdateStaffMemberRequest
 
 public sealed class CreateServiceVendorRequest
 {
+    public Guid CompoundId { get; init; }
+
     [Required]
     [MaxLength(150)]
     public string Name { get; init; } = string.Empty;
@@ -228,6 +240,8 @@ public sealed class CreateServiceVendorRequest
 
 public sealed class UpdateServiceVendorRequest
 {
+    public Guid CompoundId { get; init; }
+
     [Required]
     [MaxLength(150)]
     public string Name { get; init; } = string.Empty;

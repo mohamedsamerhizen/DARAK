@@ -57,5 +57,11 @@ public enum AuditEntityType
     IntegrationFailureEvent = 52,
     FinancialDispute = 53,
     ViolationAppeal = 54,
+    Announcement = 55,
+    UtilityOutage = 56,
+    PurchaseOrder = 57,
+    InventoryMovement = 58,
+    StaffMember = 59,
+    ServiceVendor = 60,
     Other = 99
 }

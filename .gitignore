@@ -1,49 +1,75 @@
+# Build output
 bin/
 obj/
 **/bin/
 **/obj/
-.vs/
-TestResults/
-**/TestResults/
 
+# IDE / local tooling
+.vs/
+.vscode/
+.idea/
 *.user
 *.suo
+
+# Test and coverage output
+TestResults/
+**/TestResults/
+*.trx
+*.coverage
+coverage/
+**/coverage/
+
+# Logs and runtime artifacts
 *.log
 logs/
+**/logs/
 DARAK.Api/logs/
+DARAK.Api/App_Data/Uploads/
+DARAK.Api/App_Data/Exports/
+DARAK.Api/App_Data/**/*.db
+DARAK.Api/App_Data/**/*.sqlite
+temp/
+tmp/
+**/temp/
+**/tmp/
 
-# DARAK local secrets and review artifacts
+# Local secrets
 .env
 .env.*
 !.env.example
+!.env.production.example
+*.pfx
+*.key
+*.pem
 
+# Local review / generated evidence files
 empty-cs-files.txt
 DARAK-build-output.txt
 DARAK-test-output.txt
 DARAK-structure.txt
 DARAK-files-list.txt
 
-# Local document storage
-DARAK.Api/App_Data/Uploads/
 # Local generated ZIP packs / handoff archives
 *.zip
 **/*.zip
 
-# Local build and test output artifacts
-*.trx
-*.coverage
-coverage/
-**/coverage/
-
 # Local remediation patch/backup folders
+files/
 _phase*/
 _backup_phase*/
+_backup_batch*/
+_artifact-backup-*/
 _ef_repair_backup_*/
+_remediation*/
+DARAK-REMEDIATION-*/
+DARAK-BATCH-*/
 .env.local.backup
 *.bak
-
-# Local remediation packages and temporary patch material
-DARAK-REMEDIATION-*/
-_remediation*/
-*.patch
 *.orig
+*.patch
+
+# OS noise
+.DS_Store
+Thumbs.db
+_artifact-backup*/
+*.tmp

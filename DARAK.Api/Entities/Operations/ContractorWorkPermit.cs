@@ -61,4 +61,6 @@ public sealed class ContractorWorkPermit
     public DateTime? UpdatedAtUtc { get; set; }
 
     public byte[] RowVersion { get; set; } = [];
+
+    public ICollection<ContractorAccessLog> AccessLogs { get; set; } = new List<ContractorAccessLog>();
 }

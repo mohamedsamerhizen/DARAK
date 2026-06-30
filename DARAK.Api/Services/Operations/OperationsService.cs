@@ -41,6 +41,7 @@ public sealed class OperationsService(
         }
 
         var validation = await ValidateWorkOrderRequestAsync(
+            compoundResult.Value,
             request.Title,
             request.Description,
             request.SourceType,
@@ -139,6 +140,7 @@ public sealed class OperationsService(
         }
 
         var validation = await ValidateWorkOrderRequestAsync(
+            compoundResult.Value,
             request.Title,
             request.Description,
             request.SourceType,
@@ -206,10 +208,13 @@ public sealed class OperationsService(
         WorkOrderQueryRequest query,
         CancellationToken cancellationToken = default)
     {
-        var exists = await dbContext.StaffMembers
+        var staffCompoundId = await dbContext.StaffMembers
             .AsNoTracking()
-            .AnyAsync(staffMember => staffMember.Id == staffMemberId, cancellationToken);
-        if (!exists)
+            .Where(staffMember => staffMember.Id == staffMemberId)
+            .Select(staffMember => (Guid?)staffMember.CompoundId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (!staffCompoundId.HasValue
+            || !await CanAccessCompoundAsync(staffCompoundId.Value, cancellationToken))
         {
             return ServiceResult<PagedResult<WorkOrderResponse>>.NotFound("Staff member was not found.");
         }
@@ -227,10 +232,13 @@ public sealed class OperationsService(
         WorkOrderQueryRequest query,
         CancellationToken cancellationToken = default)
     {
-        var exists = await dbContext.ServiceVendors
+        var vendorCompoundId = await dbContext.ServiceVendors
             .AsNoTracking()
-            .AnyAsync(vendor => vendor.Id == vendorId, cancellationToken);
-        if (!exists)
+            .Where(vendor => vendor.Id == vendorId)
+            .Select(vendor => (Guid?)vendor.CompoundId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (!vendorCompoundId.HasValue
+            || !await CanAccessCompoundAsync(vendorCompoundId.Value, cancellationToken))
         {
             return ServiceResult<PagedResult<WorkOrderResponse>>.NotFound("Service vendor was not found.");
         }
@@ -282,6 +290,11 @@ public sealed class OperationsService(
         if (!await CanAccessCompoundAsync(workOrder.CompoundId, cancellationToken))
         {
             return ServiceResult<WorkOrderResponse>.NotFound("Work order was not found.");
+        }
+
+        if (staffMember.CompoundId != workOrder.CompoundId)
+        {
+            return ServiceResult<WorkOrderResponse>.BadRequest("Staff member must belong to the work order compound.");
         }
 
         var validation = ValidateCanChangeActiveWorkOrder(workOrder);
@@ -349,6 +362,11 @@ public sealed class OperationsService(
         if (!await CanAccessCompoundAsync(workOrder.CompoundId, cancellationToken))
         {
             return ServiceResult<WorkOrderResponse>.NotFound("Work order was not found.");
+        }
+
+        if (vendor.CompoundId != workOrder.CompoundId)
+        {
+            return ServiceResult<WorkOrderResponse>.BadRequest("Service vendor must belong to the work order compound.");
         }
 
         var validation = ValidateCanChangeActiveWorkOrder(workOrder);
@@ -1090,6 +1108,7 @@ public sealed class OperationsService(
     }
 
     private async Task<ValidationFailure?> ValidateWorkOrderRequestAsync(
+        Guid compoundId,
         string title,
         string description,
         WorkOrderSourceType sourceType,
@@ -1157,17 +1176,26 @@ public sealed class OperationsService(
 
         if (staffMemberId.HasValue)
         {
-            var staffStatus = await dbContext.StaffMembers
+            var staff = await dbContext.StaffMembers
                 .AsNoTracking()
                 .Where(staffMember => staffMember.Id == staffMemberId.Value)
-                .Select(staffMember => (StaffStatus?)staffMember.Status)
+                .Select(staffMember => new
+                {
+                    staffMember.Status,
+                    staffMember.CompoundId
+                })
                 .FirstOrDefaultAsync(cancellationToken);
-            if (!staffStatus.HasValue)
+            if (staff is null)
             {
                 return new ValidationFailure(ServiceResultStatus.NotFound, "Staff member was not found.");
             }
 
-            if (staffStatus.Value != StaffStatus.Active)
+            if (staff.CompoundId != compoundId)
+            {
+                return new ValidationFailure(ServiceResultStatus.BadRequest, "Staff member must belong to the work order compound.");
+            }
+
+            if (staff.Status != StaffStatus.Active)
             {
                 return new ValidationFailure(ServiceResultStatus.BadRequest, "Only active staff members can be assigned.");
             }
@@ -1175,17 +1203,26 @@ public sealed class OperationsService(
 
         if (vendorId.HasValue)
         {
-            var vendorStatus = await dbContext.ServiceVendors
+            var vendor = await dbContext.ServiceVendors
                 .AsNoTracking()
                 .Where(vendor => vendor.Id == vendorId.Value)
-                .Select(vendor => (VendorStatus?)vendor.Status)
+                .Select(vendor => new
+                {
+                    vendor.Status,
+                    vendor.CompoundId
+                })
                 .FirstOrDefaultAsync(cancellationToken);
-            if (!vendorStatus.HasValue)
+            if (vendor is null)
             {
                 return new ValidationFailure(ServiceResultStatus.NotFound, "Service vendor was not found.");
             }
 
-            if (vendorStatus.Value != VendorStatus.Active)
+            if (vendor.CompoundId != compoundId)
+            {
+                return new ValidationFailure(ServiceResultStatus.BadRequest, "Service vendor must belong to the work order compound.");
+            }
+
+            if (vendor.Status != VendorStatus.Active)
             {
                 return new ValidationFailure(ServiceResultStatus.BadRequest, "Only active vendors can be assigned.");
             }

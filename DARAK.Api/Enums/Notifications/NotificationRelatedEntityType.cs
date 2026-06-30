@@ -17,5 +17,6 @@ public enum NotificationRelatedEntityType
     FinancialAdjustment = 12,
     CommunicationCampaign = 13,
     DocumentRequirement = 14,
-    UtilityOutage = 15
+    UtilityOutage = 15,
+    Announcement = 16
 }

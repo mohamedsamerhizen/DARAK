@@ -702,10 +702,12 @@ public sealed class UtilityBillService(
                 && bill.BillStatus != BillStatus.Paid
                 && (bill.BillingCycle.Year < cycleYear
                     || (bill.BillingCycle.Year == cycleYear && bill.BillingCycle.Month < cycleMonth)))
-            .Select(bill => new { bill.TotalAmount, bill.PaidAmount })
+            .Select(bill => new { bill.TotalAmount, bill.PaidAmount, bill.PreviousBalanceAmount })
             .ToArrayAsync(cancellationToken);
 
-        return previousBalances.Sum(bill => Math.Max(0m, bill.TotalAmount - bill.PaidAmount));
+        var openBalance = previousBalances.Sum(bill => Math.Max(0m, bill.TotalAmount - bill.PaidAmount));
+        var alreadyCarried = previousBalances.Sum(bill => bill.PreviousBalanceAmount);
+        return Math.Max(0m, openBalance - alreadyCarried);
     }
 
     private async Task<Guid?> GetActiveResidentProfileIdForUnitAsync(

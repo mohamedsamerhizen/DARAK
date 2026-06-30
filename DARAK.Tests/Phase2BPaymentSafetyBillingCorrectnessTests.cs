@@ -72,6 +72,44 @@ public sealed class Phase2BPaymentSafetyBillingCorrectnessTests
     }
 
     [Fact]
+    public async Task GenerateUtilityBillAsync_PreviousBalanceDoesNotCascadeAlreadyCarriedForwardAmounts()
+    {
+        await using var dbContext = TestDb.Create();
+        var seed = await SeedUtilityBillGenerationBaseAsync(dbContext);
+        await SeedPriorUtilityBillAsync(dbContext, seed, 2026, 3, totalAmount: 100m, paidAmount: 0m, status: BillStatus.Unpaid);
+        await SeedPriorUtilityBillAsync(
+            dbContext,
+            seed,
+            2026,
+            4,
+            totalAmount: 130m,
+            paidAmount: 0m,
+            status: BillStatus.Unpaid,
+            previousBalanceAmount: 100m);
+        var service = new UtilityBillService(dbContext);
+
+        var result = await service.GenerateUtilityBillAsync(new GenerateUtilityBillRequest
+        {
+            CompoundId = seed.CompoundId,
+            PropertyUnitId = seed.PropertyUnitId,
+            BillingCycleId = seed.CurrentBillingCycleId,
+            Lines =
+            [
+                new AddUtilityBillLineRequest
+                {
+                    CompoundServiceId = seed.CompoundServiceId,
+                    Quantity = 1m,
+                    UnitPrice = 30m
+                }
+            ]
+        });
+
+        result.Status.Should().Be(ServiceResultStatus.Success);
+        result.Value!.PreviousBalanceAmount.Should().Be(130m);
+        result.Value.TotalAmount.Should().Be(160m);
+    }
+
+    [Fact]
     public async Task GenerateMonthlyRentInvoicesAsync_PreviousBalanceSumsAllPriorOpenInvoices()
     {
         await using var dbContext = TestDb.Create();
@@ -96,6 +134,39 @@ public sealed class Phase2BPaymentSafetyBillingCorrectnessTests
         var invoice = await dbContext.RentInvoices.SingleAsync(item => item.Year == 2026 && item.Month == 6);
         invoice.PreviousBalanceAmount.Should().Be(130m);
         invoice.TotalAmount.Should().Be(seed.MonthlyRentAmount + 130m);
+    }
+
+    [Fact]
+    public async Task GenerateMonthlyRentInvoicesAsync_PreviousBalanceDoesNotCascadeAlreadyCarriedForwardAmounts()
+    {
+        await using var dbContext = TestDb.Create();
+        var seed = await SeedRentContractAsync(dbContext);
+        await SeedPriorRentInvoiceAsync(dbContext, seed, 2026, 3, totalAmount: 100m, paidAmount: 0m, status: RentInvoiceStatus.Unpaid);
+        await SeedPriorRentInvoiceAsync(
+            dbContext,
+            seed,
+            2026,
+            4,
+            totalAmount: 300m,
+            paidAmount: 0m,
+            status: RentInvoiceStatus.Unpaid,
+            previousBalanceAmount: 100m);
+        var service = new RentInvoiceService(dbContext);
+
+        var result = await service.GenerateMonthlyRentInvoicesAsync(new GenerateMonthlyRentInvoicesRequest
+        {
+            CompoundId = seed.CompoundId,
+            Year = 2026,
+            Month = 6,
+            IssueDate = new DateOnly(2026, 6, 1),
+            DueDate = new DateOnly(2026, 6, 30),
+            IncludePreviousBalance = true
+        });
+
+        result.Status.Should().Be(ServiceResultStatus.Success);
+        var invoice = await dbContext.RentInvoices.SingleAsync(item => item.Year == 2026 && item.Month == 6);
+        invoice.PreviousBalanceAmount.Should().Be(300m);
+        invoice.TotalAmount.Should().Be(seed.MonthlyRentAmount + 300m);
     }
 
     [Fact]
@@ -304,7 +375,8 @@ public sealed class Phase2BPaymentSafetyBillingCorrectnessTests
         int month,
         decimal totalAmount,
         decimal paidAmount,
-        BillStatus status)
+        BillStatus status,
+        decimal previousBalanceAmount = 0m)
     {
         var cycle = new BillingCycle
         {
@@ -325,6 +397,7 @@ public sealed class Phase2BPaymentSafetyBillingCorrectnessTests
             IssueDate = cycle.PeriodStart,
             DueDate = cycle.DueDate,
             SubtotalAmount = totalAmount,
+            PreviousBalanceAmount = previousBalanceAmount,
             TotalAmount = totalAmount,
             PaidAmount = paidAmount,
             BillStatus = status
@@ -381,7 +454,8 @@ public sealed class Phase2BPaymentSafetyBillingCorrectnessTests
         int month,
         decimal totalAmount,
         decimal paidAmount,
-        RentInvoiceStatus status)
+        RentInvoiceStatus status,
+        decimal previousBalanceAmount = 0m)
     {
         dbContext.RentInvoices.Add(new RentInvoice
         {
@@ -395,6 +469,7 @@ public sealed class Phase2BPaymentSafetyBillingCorrectnessTests
             IssueDate = new DateOnly(year, month, 1),
             DueDate = new DateOnly(year, month, DateTime.DaysInMonth(year, month)),
             RentAmount = totalAmount,
+            PreviousBalanceAmount = previousBalanceAmount,
             TotalAmount = totalAmount,
             PaidAmount = paidAmount,
             RentInvoiceStatus = status

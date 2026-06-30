@@ -99,6 +99,93 @@ public sealed class MaintenanceReliabilityServiceTests
     }
 
     [Fact]
+    public async Task Phase7_GeneratePreventiveWorkOrderAsync_IsIdempotentForSameDueWindow()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "MR-P7-IDEM");
+        var service = CreateService(dbContext, compound.Id);
+        var asset = await service.CreateAssetAsync(new CreateMaintenanceAssetRequest
+        {
+            CompoundId = compound.Id,
+            Name = "Idempotent generator",
+            Code = "PM-IDEM-01",
+            AssetType = MaintenanceAssetType.Generator
+        });
+        var dueWindow = DateTime.UtcNow.AddMinutes(-10);
+        var plan = await service.CreatePreventivePlanAsync(new CreatePreventiveMaintenancePlanRequest
+        {
+            MaintenanceAssetId = asset.Value!.Id,
+            Title = "Generator due-window inspection",
+            Description = "Inspect generator once for the due window.",
+            Cadence = PreventiveMaintenanceCadence.Monthly,
+            Priority = WorkOrderPriority.Normal,
+            NextDueAtUtc = dueWindow
+        });
+
+        var first = await service.GeneratePreventiveWorkOrderAsync(
+            plan.Value!.Id,
+            Guid.NewGuid(),
+            new GeneratePreventiveWorkOrderRequest { ScheduledAtUtc = dueWindow });
+        var second = await service.GeneratePreventiveWorkOrderAsync(
+            plan.Value.Id,
+            Guid.NewGuid(),
+            new GeneratePreventiveWorkOrderRequest { ScheduledAtUtc = dueWindow });
+
+        first.IsSuccess.Should().BeTrue(first.Message);
+        second.IsSuccess.Should().BeTrue(second.Message);
+        second.Value!.WorkOrderId.Should().Be(first.Value!.WorkOrderId);
+        dbContext.WorkOrders.Count(order => order.SourceEntityId == plan.Value.Id).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Phase7_RefreshSlaBreachesAsync_EscalatesResolutionBreachOnce()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "MR-P7-SLA");
+        var active = new WorkOrder
+        {
+            CompoundId = compound.Id,
+            Title = "Overdue active SLA",
+            Description = "Resolution deadline passed.",
+            SourceType = WorkOrderSourceType.Manual,
+            Priority = WorkOrderPriority.High,
+            Status = WorkOrderStatus.InProgress,
+            SlaStatus = MaintenanceSlaStatus.WithinSla,
+            ResponseDueAtUtc = DateTime.UtcNow.AddHours(-4),
+            ResolutionDueAtUtc = DateTime.UtcNow.AddHours(-1)
+        };
+        var completed = new WorkOrder
+        {
+            CompoundId = compound.Id,
+            Title = "Completed overdue SLA",
+            Description = "Should not escalate.",
+            SourceType = WorkOrderSourceType.Manual,
+            Priority = WorkOrderPriority.High,
+            Status = WorkOrderStatus.Completed,
+            SlaStatus = MaintenanceSlaStatus.WithinSla,
+            ResponseDueAtUtc = DateTime.UtcNow.AddHours(-4),
+            ResolutionDueAtUtc = DateTime.UtcNow.AddHours(-1),
+            CompletedAtUtc = DateTime.UtcNow
+        };
+        dbContext.WorkOrders.AddRange(active, completed);
+        await dbContext.SaveChangesAsync();
+        var service = CreateService(dbContext, compound.Id);
+
+        var firstRefresh = await service.RefreshSlaBreachesAsync(new MaintenanceReliabilitySummaryQuery { CompoundId = compound.Id });
+        var secondRefresh = await service.RefreshSlaBreachesAsync(new MaintenanceReliabilitySummaryQuery { CompoundId = compound.Id });
+
+        firstRefresh.IsSuccess.Should().BeTrue(firstRefresh.Message);
+        firstRefresh.Value!.UpdatedCount.Should().Be(1);
+        secondRefresh.Value!.UpdatedCount.Should().Be(0);
+        var refreshedActive = dbContext.WorkOrders.Single(order => order.Id == active.Id);
+        refreshedActive.SlaStatus.Should().Be(MaintenanceSlaStatus.Escalated);
+        refreshedActive.SlaBreachedAtUtc.Should().NotBeNull();
+        refreshedActive.SlaEscalatedAtUtc.Should().NotBeNull();
+        refreshedActive.SlaEscalationCount.Should().Be(1);
+        dbContext.WorkOrders.Single(order => order.Id == completed.Id).SlaStatus.Should().Be(MaintenanceSlaStatus.WithinSla);
+    }
+
+    [Fact]
     public async Task ChecklistRun_CopiesTemplateItemsAndTracksFailedRequiredItems()
     {
         await using var dbContext = TestDb.Create();

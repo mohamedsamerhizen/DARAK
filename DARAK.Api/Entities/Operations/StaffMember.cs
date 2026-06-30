@@ -25,9 +25,13 @@ public sealed class StaffMember
 
     public Guid? UserId { get; set; }
 
+    public Guid CompoundId { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAtUtc { get; set; }
+
+    public Compound Compound { get; set; } = null!;
 
     public ApplicationUser? User { get; set; }
 

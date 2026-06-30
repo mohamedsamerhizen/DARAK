@@ -12,9 +12,13 @@ namespace DARAK.Api.Services;
 
 public sealed class AccessControlOperationsService(
     ApplicationDbContext dbContext,
-    ICompoundAccessService? compoundAccessService = null)
+    ICompoundAccessService? compoundAccessService = null,
+    IAccessCodeHasher? accessCodeHasher = null)
     : IAccessControlOperationsService
 {
+    private const string MaskedCredentialCode = "********";
+    private readonly IAccessCodeHasher accessCodeHasher = accessCodeHasher ?? new AccessCodeHasher();
+
     public async Task<ServiceResult<AccessControlOperationsSummaryResponse>> GetSummaryAsync(
         Guid? compoundId,
         CancellationToken cancellationToken = default)
@@ -122,6 +126,11 @@ public sealed class AccessControlOperationsService(
             return ServiceResult<ContractorWorkPermitResponse>.NotFound("Service vendor was not found.");
         }
 
+        if (vendor.CompoundId != request.CompoundId)
+        {
+            return ServiceResult<ContractorWorkPermitResponse>.BadRequest("Service vendor must belong to the selected compound.");
+        }
+
         if (vendor.Status != VendorStatus.Active)
         {
             return ServiceResult<ContractorWorkPermitResponse>.BadRequest("Only active vendors can receive contractor work permits.");
@@ -225,6 +234,7 @@ public sealed class AccessControlOperationsService(
         permit.DeniedAtUtc = DateTime.UtcNow;
         permit.DenialReason = reason;
         permit.UpdatedAtUtc = DateTime.UtcNow;
+        AddContractorAccessLog(permit, ContractorAccessAction.Denied, deniedByUserId, reason);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return await GetContractorWorkPermitAsync(permit.Id, cancellationToken);
@@ -236,6 +246,14 @@ public sealed class AccessControlOperationsService(
         GuardContractorPermitAccessRequest request,
         CancellationToken cancellationToken = default)
     {
+        var accessCode = TrimOrNull(request.AccessCode);
+        if (accessCode is null)
+        {
+            return ServiceResult<ContractorWorkPermitResponse>.BadRequest("Contractor access code is required.");
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
         var permit = await GetPermitDetailsQuery(asNoTracking: false)
             .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (permit is null
@@ -249,6 +267,7 @@ public sealed class AccessControlOperationsService(
         {
             permit.Status = ContractorWorkPermitStatus.Expired;
             permit.UpdatedAtUtc = now;
+            AddContractorAccessLog(permit, ContractorAccessAction.Denied, guardUserId, "Expired contractor work permit.");
             await dbContext.SaveChangesAsync(cancellationToken);
             return ServiceResult<ContractorWorkPermitResponse>.BadRequest("Expired contractor work permit cannot be checked in.");
         }
@@ -263,12 +282,37 @@ public sealed class AccessControlOperationsService(
             return ServiceResult<ContractorWorkPermitResponse>.BadRequest("Only approved contractor work permits can be checked in.");
         }
 
+        var credential = await dbContext.AccessCredentials
+            .AsNoTracking()
+            .Where(item => item.CompoundId == permit.CompoundId
+                && item.SourceContractorWorkPermitId == permit.Id
+                && item.Status == AccessCredentialStatus.Active
+                && item.ValidFromUtc <= now
+                && (!item.ValidUntilUtc.HasValue || item.ValidUntilUtc.Value > now))
+            .OrderByDescending(item => item.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (credential is null)
+        {
+            AddContractorAccessLog(permit, ContractorAccessAction.CredentialFailed, guardUserId, "Active contractor credential was not found.");
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return ServiceResult<ContractorWorkPermitResponse>.BadRequest("Active contractor credential was not found.");
+        }
+
+        if (!accessCodeHasher.Verify(accessCode, credential.CredentialCode))
+        {
+            AddContractorAccessLog(permit, ContractorAccessAction.CredentialFailed, guardUserId, "Invalid contractor access code.");
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return ServiceResult<ContractorWorkPermitResponse>.BadRequest("Contractor access code is invalid.");
+        }
+
         permit.Status = ContractorWorkPermitStatus.CheckedIn;
         permit.GuardCheckedInByUserId = guardUserId;
         permit.CheckedInAtUtc = now;
         permit.GuardNotes = TrimOrNull(request.Notes);
         permit.UpdatedAtUtc = now;
+        AddContractorAccessLog(permit, ContractorAccessAction.CheckIn, guardUserId, TrimOrNull(request.Notes));
         await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return await GetContractorWorkPermitAsync(permit.Id, cancellationToken);
     }
@@ -279,6 +323,8 @@ public sealed class AccessControlOperationsService(
         GuardContractorPermitAccessRequest request,
         CancellationToken cancellationToken = default)
     {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
         var permit = await GetPermitDetailsQuery(asNoTracking: false)
             .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (permit is null
@@ -297,7 +343,9 @@ public sealed class AccessControlOperationsService(
         permit.CheckedOutAtUtc = DateTime.UtcNow;
         permit.GuardNotes = TrimOrNull(request.Notes) ?? permit.GuardNotes;
         permit.UpdatedAtUtc = DateTime.UtcNow;
+        AddContractorAccessLog(permit, ContractorAccessAction.CheckOut, guardUserId, TrimOrNull(request.Notes));
         await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return await GetContractorWorkPermitAsync(permit.Id, cancellationToken);
     }
@@ -318,7 +366,7 @@ public sealed class AccessControlOperationsService(
             .Skip((query.PageNumber - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToArrayAsync(cancellationToken);
-        var items = credentialItems.Select(ToCredentialResponse).ToArray();
+        var items = credentialItems.Select(item => ToCredentialResponse(item)).ToArray();
 
         return new PagedResult<AccessCredentialResponse>(items, query.PageNumber, query.PageSize, totalCount);
     }
@@ -363,13 +411,6 @@ public sealed class AccessControlOperationsService(
         }
 
         var code = TrimOrNull(request.CredentialCode) ?? await GenerateUniqueCredentialCodeAsync(cancellationToken);
-        var duplicate = await dbContext.AccessCredentials
-            .AsNoTracking()
-            .AnyAsync(item => item.CredentialCode == code, cancellationToken);
-        if (duplicate)
-        {
-            return ServiceResult<AccessCredentialResponse>.Conflict("Access credential code already exists.");
-        }
 
         var credential = new AccessCredential
         {
@@ -378,7 +419,7 @@ public sealed class AccessControlOperationsService(
             OwnerType = request.OwnerType,
             OwnerEntityId = request.OwnerEntityId,
             OwnerDisplayName = request.OwnerDisplayName.Trim(),
-            CredentialCode = code,
+            CredentialCode = accessCodeHasher.Hash(code),
             ValidFromUtc = request.ValidFromUtc,
             ValidUntilUtc = request.ValidUntilUtc,
             SourceVisitorPassId = request.SourceVisitorPassId,
@@ -392,7 +433,7 @@ public sealed class AccessControlOperationsService(
         return ServiceResult<AccessCredentialResponse>.Success(ToCredentialResponse(await dbContext.AccessCredentials
             .AsNoTracking()
             .Include(item => item.Compound)
-            .FirstAsync(item => item.Id == credential.Id, cancellationToken)));
+            .FirstAsync(item => item.Id == credential.Id, cancellationToken), code));
     }
 
     public async Task<ServiceResult<AccessCredentialResponse>> RevokeAccessCredentialAsync(
@@ -659,7 +700,10 @@ public sealed class AccessControlOperationsService(
             .ToArray();
 
         var permitItems = await permits
-            .Where(item => item.CheckedInAtUtc.HasValue || item.CheckedOutAtUtc.HasValue || item.DeniedAtUtc.HasValue)
+            .Where(item => item.AccessLogs.Any()
+                || item.CheckedInAtUtc.HasValue
+                || item.CheckedOutAtUtc.HasValue
+                || item.DeniedAtUtc.HasValue)
             .ToArrayAsync(cancellationToken);
 
         var guardUserIds = permitItems
@@ -1104,7 +1148,7 @@ public sealed class AccessControlOperationsService(
             item.CredentialType,
             item.OwnerType,
             item.OwnerDisplayName,
-            item.CredentialCode,
+            MaskedCredentialCode,
             item.Status,
             item.ValidFromUtc,
             item.ValidUntilUtc,
@@ -1496,7 +1540,7 @@ public sealed class AccessControlOperationsService(
                 item.CredentialType,
                 item.OwnerType,
                 item.OwnerDisplayName,
-                item.CredentialCode,
+                MaskedCredentialCode,
                 item.Status,
                 item.ValidFromUtc,
                 item.ValidUntilUtc,
@@ -1514,7 +1558,7 @@ public sealed class AccessControlOperationsService(
                 item.CredentialType,
                 item.OwnerType,
                 item.OwnerDisplayName,
-                item.CredentialCode,
+                MaskedCredentialCode,
                 item.Status,
                 item.ValidFromUtc,
                 item.ValidUntilUtc,
@@ -1532,7 +1576,7 @@ public sealed class AccessControlOperationsService(
                 item.CredentialType,
                 item.OwnerType,
                 item.OwnerDisplayName,
-                item.CredentialCode,
+                MaskedCredentialCode,
                 item.Status,
                 item.ValidFromUtc,
                 item.ValidUntilUtc,
@@ -1550,7 +1594,7 @@ public sealed class AccessControlOperationsService(
                 item.CredentialType,
                 item.OwnerType,
                 item.OwnerDisplayName,
-                item.CredentialCode,
+                MaskedCredentialCode,
                 item.Status,
                 item.ValidFromUtc,
                 item.ValidUntilUtc,
@@ -1568,7 +1612,7 @@ public sealed class AccessControlOperationsService(
                 item.CredentialType,
                 item.OwnerType,
                 item.OwnerDisplayName,
-                item.CredentialCode,
+                MaskedCredentialCode,
                 item.Status,
                 item.ValidFromUtc,
                 item.ValidUntilUtc,
@@ -1620,6 +1664,27 @@ public sealed class AccessControlOperationsService(
         ContractorWorkPermit item,
         IReadOnlyDictionary<Guid, string> guardNames)
     {
+        if (item.AccessLogs.Count > 0)
+        {
+            foreach (var log in item.AccessLogs.OrderBy(log => log.CreatedAtUtc))
+            {
+                yield return new AccessAuditTrailItemResponse(
+                    "ContractorWorkPermit",
+                    item.Id,
+                    item.CompoundId,
+                    item.Compound.Name,
+                    item.Vendor.Name,
+                    log.Action.ToString(),
+                    log.GuardUserId,
+                    log.GuardUser?.FullName
+                        ?? (log.GuardUserId.HasValue && guardNames.TryGetValue(log.GuardUserId.Value, out var guardName) ? guardName : null),
+                    log.CreatedAtUtc,
+                    log.Notes);
+            }
+
+            yield break;
+        }
+
         if (item.CheckedInAtUtc.HasValue)
         {
             yield return new AccessAuditTrailItemResponse(
@@ -1698,6 +1763,8 @@ public sealed class AccessControlOperationsService(
             .Include(item => item.Compound)
             .Include(item => item.Vendor)
             .Include(item => item.RelatedWorkOrder)
+            .Include(item => item.AccessLogs)
+                .ThenInclude(log => log.GuardUser)
             .AsQueryable();
 
         return asNoTracking ? query.AsNoTracking().AsSplitQuery() : query;
@@ -1794,8 +1861,7 @@ public sealed class AccessControlOperationsService(
         var searchTerm = TrimOrNull(request.SearchTerm);
         if (searchTerm is not null)
         {
-            query = query.Where(item => item.OwnerDisplayName.Contains(searchTerm)
-                || item.CredentialCode.Contains(searchTerm));
+            query = query.Where(item => item.OwnerDisplayName.Contains(searchTerm));
         }
 
         return query;
@@ -1900,21 +1966,10 @@ public sealed class AccessControlOperationsService(
         return null;
     }
 
-    private async Task<string> GenerateUniqueCredentialCodeAsync(CancellationToken cancellationToken)
+    private static Task<string> GenerateUniqueCredentialCodeAsync(CancellationToken cancellationToken)
     {
-        for (var attempt = 0; attempt < 20; attempt++)
-        {
-            var code = $"AC-{DateTime.UtcNow:yyyyMMdd}-{GenerateSecureCodeSegment(12)}";
-            var exists = await dbContext.AccessCredentials
-                .AsNoTracking()
-                .AnyAsync(item => item.CredentialCode == code, cancellationToken);
-            if (!exists)
-            {
-                return code;
-            }
-        }
-
-        return $"AC-{DateTime.UtcNow:yyyyMMdd}-{GenerateSecureCodeSegment(16)}";
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult($"AC-{DateTime.UtcNow:yyyyMMdd}-{GenerateSecureCodeSegment(12)}");
     }
 
     private static string GenerateSecureCodeSegment(int length)
@@ -1930,6 +1985,21 @@ public sealed class AccessControlOperationsService(
         }
 
         return new string(chars);
+    }
+
+    private void AddContractorAccessLog(
+        ContractorWorkPermit permit,
+        ContractorAccessAction action,
+        Guid? guardUserId,
+        string? notes)
+    {
+        dbContext.ContractorAccessLogs.Add(new ContractorAccessLog
+        {
+            ContractorWorkPermitId = permit.Id,
+            GuardUserId = guardUserId,
+            Action = action,
+            Notes = TrimOrNull(notes)
+        });
     }
 
     private async Task<IQueryable<ContractorWorkPermit>> ApplyCurrentCompoundScopeAsync(
@@ -2050,7 +2120,7 @@ public sealed class AccessControlOperationsService(
             item.UpdatedAtUtc);
     }
 
-    private static AccessCredentialResponse ToCredentialResponse(AccessCredential item)
+    private static AccessCredentialResponse ToCredentialResponse(AccessCredential item, string? displayOnceCredentialCode = null)
     {
         return new AccessCredentialResponse(
             item.Id,
@@ -2061,7 +2131,7 @@ public sealed class AccessControlOperationsService(
             item.OwnerType,
             item.OwnerEntityId,
             item.OwnerDisplayName,
-            item.CredentialCode,
+            displayOnceCredentialCode ?? MaskedCredentialCode,
             item.ValidFromUtc,
             item.ValidUntilUtc,
             item.SourceVisitorPassId,

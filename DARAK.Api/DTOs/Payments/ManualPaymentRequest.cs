@@ -14,6 +14,9 @@ public sealed class ManualPaymentRequest
     [Range(0.01, double.MaxValue)]
     public decimal Amount { get; init; }
 
+    [MaxLength(120)]
+    public string? IdempotencyKey { get; init; }
+
     [MaxLength(500)]
     public string? Notes { get; init; }
 }

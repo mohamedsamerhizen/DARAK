@@ -245,6 +245,97 @@ public sealed class ResidentLifecycleServiceTests
     }
 
     [Fact]
+    public async Task ConfirmFinancialClearanceAsync_BlocksMoveOutWithFinancialBlockers()
+    {
+        await using var dbContext = TestDb.Create();
+        var seed = await SeedAsync(dbContext, "LC-FIN-1");
+        var service = CreateService(dbContext, seed.Compound.Id);
+        var process = await service.CreateProcessAsync(
+            Guid.NewGuid(),
+            new CreateResidentLifecycleProcessRequest
+            {
+                PropertyUnitId = seed.Unit.Id,
+                ResidentProfileId = seed.Resident.Id,
+                ProcessType = ResidentLifecycleProcessType.MoveOut,
+                TargetDate = new DateOnly(2026, 7, 20),
+                FinancialClearanceRequired = true
+            });
+        await AddMoveOutFinancialBlockersAsync(dbContext, seed);
+
+        var readiness = await service.GetMoveOutReadinessAsync(new MoveOutReadinessQuery
+        {
+            PropertyUnitId = seed.Unit.Id,
+            ResidentProfileId = seed.Resident.Id,
+            AsOfDate = new DateOnly(2026, 7, 1)
+        });
+        var result = await service.ConfirmFinancialClearanceAsync(
+            process.Value!.Id,
+            Guid.NewGuid(),
+            new ConfirmLifecycleFinancialClearanceRequest { Notes = "Attempted clearance" });
+
+        readiness.IsSuccess.Should().BeTrue(readiness.Message);
+        readiness.Value!.FinancialItems.Should().Contain(item => item.SourceType == FinancialLedgerSourceType.PaymentPlanInstallment);
+        readiness.Value.Blockers.Select(item => item.Code).Should().Contain("ACTIVE_LEGAL_NOTICES");
+        result.Status.Should().Be(ServiceResultStatus.BadRequest);
+        result.Message.Should().Contain("outstanding amount");
+        result.Message.Should().Contain("active financial disputes");
+        result.Message.Should().Contain("active collection cases");
+        result.Message.Should().Contain("active legal notices");
+        var persisted = dbContext.ResidentLifecycleProcesses.Single(item => item.Id == process.Value.Id);
+        persisted.Status.Should().Be(ResidentLifecycleStatus.PendingFinancialClearance);
+        persisted.FinancialClearanceConfirmed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CompleteProcessAsync_RevalidatesFinancialClearanceBeforeEndingMoveOut()
+    {
+        await using var dbContext = TestDb.Create();
+        var seed = await SeedAsync(dbContext, "LC-FIN-2");
+        var service = CreateService(dbContext, seed.Compound.Id);
+        var process = await service.CreateProcessAsync(
+            Guid.NewGuid(),
+            new CreateResidentLifecycleProcessRequest
+            {
+                PropertyUnitId = seed.Unit.Id,
+                ResidentProfileId = seed.Resident.Id,
+                ProcessType = ResidentLifecycleProcessType.MoveOut,
+                TargetDate = new DateOnly(2026, 7, 25),
+                FinancialClearanceRequired = true
+            });
+        var confirmed = await service.ConfirmFinancialClearanceAsync(
+            process.Value!.Id,
+            Guid.NewGuid(),
+            new ConfirmLifecycleFinancialClearanceRequest { Notes = "Clean before new bill" });
+        dbContext.UtilityBills.Add(new UtilityBill
+        {
+            CompoundId = seed.Compound.Id,
+            PropertyUnitId = seed.Unit.Id,
+            ResidentProfileId = seed.Resident.Id,
+            BillingCycleId = Guid.NewGuid(),
+            BillNumber = "UB-FIN-2",
+            BillStatus = BillStatus.Unpaid,
+            IssueDate = new DateOnly(2026, 7, 1),
+            DueDate = new DateOnly(2026, 7, 10),
+            TotalAmount = 50_000m,
+            PaidAmount = 0m
+        });
+        await dbContext.SaveChangesAsync();
+
+        var result = await service.CompleteProcessAsync(
+            process.Value.Id,
+            Guid.NewGuid(),
+            new CompleteResidentLifecycleProcessRequest { Notes = "Should block" });
+
+        confirmed.Status.Should().Be(ServiceResultStatus.Success);
+        result.Status.Should().Be(ServiceResultStatus.BadRequest);
+        result.Message.Should().Contain("Move-out financial clearance is blocked");
+        var persisted = dbContext.ResidentLifecycleProcesses.Single(item => item.Id == process.Value.Id);
+        persisted.FinancialClearanceConfirmed.Should().BeFalse();
+        dbContext.OccupancyRecords.Single(item => item.Id == seed.Occupancy.Id).OccupancyStatus.Should().Be(OccupancyStatus.Active);
+        dbContext.PropertyUnits.Single(item => item.Id == seed.Unit.Id).UnitStatus.Should().Be(UnitStatus.Occupied);
+    }
+
+    [Fact]
     public async Task CreateProcessAsync_RejectsMoveOutWithoutActiveOccupancy()
     {
         await using var dbContext = TestDb.Create();
@@ -651,6 +742,105 @@ public sealed class ResidentLifecycleServiceTests
 
         await dbContext.SaveChangesAsync();
         return new SeedData(compound, resident, unit, occupancy ?? new OccupancyRecord());
+    }
+
+    private static async Task AddMoveOutFinancialBlockersAsync(ApplicationDbContext dbContext, SeedData seed)
+    {
+        var collectionCase = new CollectionCase
+        {
+            CompoundId = seed.Compound.Id,
+            ResidentProfileId = seed.Resident.Id,
+            Status = CollectionCaseStatus.Open,
+            AmountDue = 75_000m,
+            Reason = "Open move-out collection case"
+        };
+        var paymentPlan = new PaymentPlan
+        {
+            CompoundId = seed.Compound.Id,
+            ResidentProfileId = seed.Resident.Id,
+            CollectionCaseId = collectionCase.Id,
+            Status = PaymentPlanStatus.Active,
+            TotalAmount = 90_000m,
+            InstallmentCount = 1,
+            StartDate = new DateOnly(2026, 7, 1)
+        };
+
+        dbContext.UtilityBills.Add(new UtilityBill
+        {
+            CompoundId = seed.Compound.Id,
+            PropertyUnitId = seed.Unit.Id,
+            ResidentProfileId = seed.Resident.Id,
+            BillingCycleId = Guid.NewGuid(),
+            BillNumber = "UB-FIN-1",
+            BillStatus = BillStatus.Overdue,
+            IssueDate = new DateOnly(2026, 6, 1),
+            DueDate = new DateOnly(2026, 6, 10),
+            TotalAmount = 100_000m,
+            PaidAmount = 25_000m
+        });
+        dbContext.RentInvoices.Add(new RentInvoice
+        {
+            RentContractId = Guid.NewGuid(),
+            CompoundId = seed.Compound.Id,
+            PropertyUnitId = seed.Unit.Id,
+            ResidentProfileId = seed.Resident.Id,
+            InvoiceNumber = "RI-FIN-1",
+            Year = 2026,
+            Month = 6,
+            IssueDate = new DateOnly(2026, 6, 1),
+            DueDate = new DateOnly(2026, 6, 30),
+            RentAmount = 200_000m,
+            TotalAmount = 200_000m,
+            PaidAmount = 50_000m,
+            RentInvoiceStatus = RentInvoiceStatus.PartiallyPaid
+        });
+        dbContext.InstallmentScheduleItems.Add(new InstallmentScheduleItem
+        {
+            PropertySaleContractId = Guid.NewGuid(),
+            CompoundId = seed.Compound.Id,
+            PropertyUnitId = seed.Unit.Id,
+            ResidentProfileId = seed.Resident.Id,
+            InstallmentNumber = 1,
+            DueDate = new DateOnly(2026, 7, 1),
+            Amount = 125_000m,
+            PaidAmount = 25_000m,
+            InstallmentStatus = InstallmentStatus.Pending
+        });
+        dbContext.CollectionCases.Add(collectionCase);
+        dbContext.PaymentPlans.Add(paymentPlan);
+        dbContext.PaymentPlanInstallments.Add(new PaymentPlanInstallment
+        {
+            PaymentPlanId = paymentPlan.Id,
+            PaymentPlan = paymentPlan,
+            InstallmentNumber = 1,
+            DueDate = new DateOnly(2026, 7, 15),
+            Amount = 90_000m,
+            PaidAmount = 0m,
+            Status = PaymentPlanInstallmentStatus.Pending
+        });
+        dbContext.FinancialDisputes.Add(new FinancialDispute
+        {
+            CompoundId = seed.Compound.Id,
+            ResidentProfileId = seed.Resident.Id,
+            TargetType = FinancialDisputeTargetType.UtilityBill,
+            TargetId = Guid.NewGuid(),
+            Status = FinancialDisputeStatus.UnderReview,
+            Reason = "Move-out financial dispute",
+            ResidentMessage = "Please review before move-out.",
+            CreatedByUserId = Guid.NewGuid()
+        });
+        dbContext.LegalNotices.Add(new LegalNotice
+        {
+            CompoundId = seed.Compound.Id,
+            ResidentProfileId = seed.Resident.Id,
+            CollectionCaseId = collectionCase.Id,
+            NoticeType = LegalNoticeType.FinalPaymentNotice,
+            Status = LegalNoticeStatus.Issued,
+            Title = "Final payment notice",
+            Body = "Settle before move-out."
+        });
+
+        await dbContext.SaveChangesAsync();
     }
 
     private sealed record SeedData(Compound Compound, ResidentProfile Resident, PropertyUnit Unit, OccupancyRecord Occupancy);

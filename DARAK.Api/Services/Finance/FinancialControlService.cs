@@ -117,7 +117,65 @@ public sealed class FinancialControlService(
             return ServiceResult<ResidentStatementResponse>.NotFound("Resident statement was not found.");
         }
 
-        var lines = await BuildResidentStatementLinesAsync(residentProfileId, resident.CompoundId, dateRange, cancellationToken);
+        return await BuildResidentStatementResponseAsync(resident, query, dateRange, cancellationToken);
+    }
+
+    public async Task<ServiceResult<ResidentStatementResponse>> GetResidentStatementForUserAsync(
+        Guid userId,
+        ResidentStatementQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return ServiceResult<ResidentStatementResponse>.BadRequest("Current user is invalid.");
+        }
+
+        var dateRange = NormalizeOptionalDateRange(query.FromDate, query.ToDate);
+        if (dateRange.Error is not null)
+        {
+            return ServiceResult<ResidentStatementResponse>.BadRequest(dateRange.Error);
+        }
+
+        var profiles = await dbContext.ResidentProfiles
+            .AsNoTracking()
+            .Where(profile => profile.UserId == userId && profile.IsActive)
+            .OrderBy(profile => profile.CreatedAt)
+            .ToArrayAsync(cancellationToken);
+        if (profiles.Length == 0)
+        {
+            return ServiceResult<ResidentStatementResponse>.NotFound("Resident statement was not found.");
+        }
+
+        ResidentProfile resident;
+        if (query.ResidentProfileId.HasValue)
+        {
+            resident = profiles.FirstOrDefault(profile => profile.Id == query.ResidentProfileId.Value)!;
+            if (resident is null)
+            {
+                return ServiceResult<ResidentStatementResponse>.NotFound("Resident statement was not found.");
+            }
+        }
+        else
+        {
+            if (profiles.Length > 1)
+            {
+                return ServiceResult<ResidentStatementResponse>.BadRequest(
+                    "residentProfileId is required when the current user has multiple resident profiles.");
+            }
+
+            resident = profiles[0];
+        }
+
+        return await BuildResidentStatementResponseAsync(resident, query, dateRange, cancellationToken);
+    }
+
+    private async Task<ServiceResult<ResidentStatementResponse>> BuildResidentStatementResponseAsync(
+        ResidentProfile resident,
+        ResidentStatementQuery query,
+        OptionalDateRange dateRange,
+        CancellationToken cancellationToken)
+    {
+        var lines = await BuildResidentStatementLinesAsync(resident.Id, resident.CompoundId, dateRange, cancellationToken);
         var orderedLines = lines
             .OrderBy(line => line.OccurredAtUtc)
             .ThenBy(line => line.SourceType)
@@ -677,8 +735,8 @@ public sealed class FinancialControlService(
                     item.Amount,
                     isOverdue,
                     hasDispute,
-                    hasDispute ? dispute.Id : null,
-                    hasDispute ? dispute.Status : null,
+                    dispute?.Id,
+                    dispute?.Status,
                     pauseRecommended,
                     GetAgingRiskItemAction(daysOverdue, hasDispute, pauseRecommended)));
         }).ToArray();

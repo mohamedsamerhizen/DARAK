@@ -221,6 +221,9 @@ public sealed class PayPaymentPlanInstallmentRequest
 {
     [Range(0.01, double.MaxValue)]
     public decimal Amount { get; init; }
+
+    [MaxLength(120)]
+    public string? IdempotencyKey { get; init; }
 }
 
 public sealed record PaymentPlanInstallmentResponse(

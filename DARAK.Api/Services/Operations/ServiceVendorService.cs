@@ -1,4 +1,5 @@
 using DARAK.Api.Data;
+using DARAK.Api.DTOs.Audit;
 using DARAK.Api.DTOs.Common;
 using DARAK.Api.DTOs.Operations;
 using DARAK.Api.Entities;
@@ -8,7 +9,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DARAK.Api.Services;
 
-public sealed class ServiceVendorService(ApplicationDbContext dbContext)
+public sealed class ServiceVendorService(
+    ApplicationDbContext dbContext,
+    ICompoundAccessService? compoundAccessService = null,
+    IAuditLogService? auditLogService = null)
     : IServiceVendorService
 {
     private const int MaxNameLength = 150;
@@ -22,6 +26,7 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
         CancellationToken cancellationToken = default)
     {
         var vendors = ApplyVendorFilters(dbContext.ServiceVendors.AsNoTracking(), query);
+        vendors = await ApplyCurrentCompoundAccessAsync(vendors, cancellationToken);
         var totalCount = await vendors.CountAsync(cancellationToken);
         var items = await vendors
             .OrderBy(vendor => vendor.Name)
@@ -29,6 +34,7 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
             .Take(query.PageSize)
             .Select(vendor => new ServiceVendorResponse(
                 vendor.Id,
+                vendor.CompoundId,
                 vendor.Name,
                 vendor.ContactPersonName,
                 vendor.PhoneNumber,
@@ -52,6 +58,12 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
             .AsNoTracking()
             .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
 
+        if (vendor is not null
+            && !await CanAccessCompoundAsync(vendor.CompoundId, cancellationToken))
+        {
+            vendor = null;
+        }
+
         return vendor is null
             ? ServiceResult<ServiceVendorResponse>.NotFound("Service vendor was not found.")
             : ServiceResult<ServiceVendorResponse>.Success(ToServiceVendorResponse(vendor));
@@ -61,6 +73,21 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
         CreateServiceVendorRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (request.CompoundId == Guid.Empty)
+        {
+            return ServiceResult<ServiceVendorResponse>.BadRequest("Compound id is required.");
+        }
+
+        if (!await CanAccessCompoundAsync(request.CompoundId, cancellationToken))
+        {
+            return ServiceResult<ServiceVendorResponse>.Forbidden("Current user cannot access this compound.");
+        }
+
+        if (!await dbContext.Compounds.AsNoTracking().AnyAsync(item => item.Id == request.CompoundId && item.IsActive, cancellationToken))
+        {
+            return ServiceResult<ServiceVendorResponse>.NotFound("Compound was not found.");
+        }
+
         var validation = ValidateServiceVendorRequest(
             request.Name,
             request.ContactPersonName,
@@ -77,6 +104,7 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
 
         var vendor = new ServiceVendor
         {
+            CompoundId = request.CompoundId,
             Name = request.Name.Trim(),
             ContactPersonName = TrimOrNull(request.ContactPersonName),
             PhoneNumber = request.PhoneNumber.Trim(),
@@ -88,6 +116,7 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
         };
 
         dbContext.ServiceVendors.Add(vendor);
+        await AppendAuditAsync(vendor, "Service vendor created.", cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ServiceResult<ServiceVendorResponse>.Success(ToServiceVendorResponse(vendor));
@@ -105,6 +134,26 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
             return ServiceResult<ServiceVendorResponse>.NotFound("Service vendor was not found.");
         }
 
+        if (!await CanAccessCompoundAsync(vendor.CompoundId, cancellationToken))
+        {
+            return ServiceResult<ServiceVendorResponse>.NotFound("Service vendor was not found.");
+        }
+
+        if (request.CompoundId == Guid.Empty)
+        {
+            return ServiceResult<ServiceVendorResponse>.BadRequest("Compound id is required.");
+        }
+
+        if (!await CanAccessCompoundAsync(request.CompoundId, cancellationToken))
+        {
+            return ServiceResult<ServiceVendorResponse>.Forbidden("Current user cannot access this compound.");
+        }
+
+        if (!await dbContext.Compounds.AsNoTracking().AnyAsync(item => item.Id == request.CompoundId && item.IsActive, cancellationToken))
+        {
+            return ServiceResult<ServiceVendorResponse>.NotFound("Compound was not found.");
+        }
+
         var validation = ValidateServiceVendorRequest(
             request.Name,
             request.ContactPersonName,
@@ -119,6 +168,7 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
             return ToResult<ServiceVendorResponse>(validation);
         }
 
+        vendor.CompoundId = request.CompoundId;
         vendor.Name = request.Name.Trim();
         vendor.ContactPersonName = TrimOrNull(request.ContactPersonName);
         vendor.PhoneNumber = request.PhoneNumber.Trim();
@@ -129,6 +179,7 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
         vendor.Notes = TrimOrNull(request.Notes);
         vendor.UpdatedAtUtc = DateTime.UtcNow;
 
+        await AppendAuditAsync(vendor, "Service vendor updated.", cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ServiceResult<ServiceVendorResponse>.Success(ToServiceVendorResponse(vendor));
@@ -151,8 +202,14 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
             return ServiceResult<ServiceVendorResponse>.NotFound("Service vendor was not found.");
         }
 
+        if (!await CanAccessCompoundAsync(vendor.CompoundId, cancellationToken))
+        {
+            return ServiceResult<ServiceVendorResponse>.NotFound("Service vendor was not found.");
+        }
+
         vendor.Status = status;
         vendor.UpdatedAtUtc = DateTime.UtcNow;
+        await AppendAuditAsync(vendor, $"Service vendor status changed to {status}.", cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ServiceResult<ServiceVendorResponse>.Success(ToServiceVendorResponse(vendor));
@@ -165,6 +222,11 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
         if (request.ServiceType.HasValue)
         {
             query = query.Where(item => item.ServiceType == request.ServiceType.Value);
+        }
+
+        if (request.CompoundId.HasValue)
+        {
+            query = query.Where(item => item.CompoundId == request.CompoundId.Value);
         }
 
         if (request.Status.HasValue)
@@ -240,6 +302,7 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
     {
         return new ServiceVendorResponse(
             vendor.Id,
+            vendor.CompoundId,
             vendor.Name,
             vendor.ContactPersonName,
             vendor.PhoneNumber,
@@ -250,6 +313,60 @@ public sealed class ServiceVendorService(ApplicationDbContext dbContext)
             vendor.Notes,
             vendor.CreatedAtUtc,
             vendor.UpdatedAtUtc);
+    }
+
+    private async Task<IQueryable<ServiceVendor>> ApplyCurrentCompoundAccessAsync(
+        IQueryable<ServiceVendor> query,
+        CancellationToken cancellationToken)
+    {
+        if (compoundAccessService is null)
+        {
+            return query;
+        }
+
+        var scope = await compoundAccessService.GetCurrentScopeAsync(cancellationToken);
+        if (!scope.IsAuthenticated)
+        {
+            return query.Where(_ => false);
+        }
+
+        if (scope.IsSuperAdmin)
+        {
+            return query;
+        }
+
+        return query.Where(item => scope.AllowedCompoundIds.Contains(item.CompoundId));
+    }
+
+    private async Task<bool> CanAccessCompoundAsync(
+        Guid compoundId,
+        CancellationToken cancellationToken)
+    {
+        return compoundAccessService is null
+            || await compoundAccessService.CanCurrentUserAccessCompoundAsync(compoundId, cancellationToken);
+    }
+
+    private async Task AppendAuditAsync(
+        ServiceVendor vendor,
+        string description,
+        CancellationToken cancellationToken)
+    {
+        if (auditLogService is null)
+        {
+            return;
+        }
+
+        await auditLogService.AppendEntryAsync(new AuditLogRecord(
+            CompoundId: vendor.CompoundId,
+            ResidentProfileId: null,
+            ActorUserId: null,
+            ActorRole: null,
+            ActionType: AuditActionType.ServiceVendorChanged,
+            EntityType: AuditEntityType.ServiceVendor,
+            EntityId: vendor.Id,
+            Severity: AuditSeverity.Medium,
+            SourceModule: "Operations",
+            Description: description), cancellationToken);
     }
 
     private static string? TrimOrNull(string? value)

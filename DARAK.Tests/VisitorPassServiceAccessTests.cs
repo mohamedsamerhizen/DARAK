@@ -123,21 +123,76 @@ public sealed class VisitorPassServiceAccessTests
     }
 
     [Fact]
-    public async Task GetAdminAsync_ReturnsFullAccessCodeForDetailView()
+    public async Task GetAdminAsync_MasksAccessCodeForDetailView()
     {
         await using var dbContext = TestDb.Create();
         var seed = await SeedVisitorPassesInTwoCompoundsAsync(dbContext);
-        var expectedCode = await dbContext.VisitorPasses
-            .Where(pass => pass.Id == seed.AllowedPassId)
-            .Select(pass => pass.AccessCode)
-            .SingleAsync();
         var service = new VisitorPassService(dbContext);
 
         var result = await service.GetAdminAsync(seed.AllowedPassId);
 
         result.Status.Should().Be(ServiceResultStatus.Success);
-        result.Value!.AccessCode.Should().Be(expectedCode);
-        result.Value.AccessCode.Should().NotBe("********");
+        result.Value!.AccessCode.Should().Be("********");
+    }
+
+    [Fact]
+    public async Task CreateResidentAsync_ReturnsRawAccessCodeOnceAndStoresHash()
+    {
+        await using var dbContext = TestDb.Create();
+        var userId = Guid.NewGuid();
+        var compound = CreateCompound("Create Hash");
+        var unit = CreateUnit(compound.Id, "C-101");
+        var resident = new ResidentProfile
+        {
+            UserId = userId,
+            CompoundId = compound.Id,
+            FullName = "Hash Resident",
+            IsActive = true
+        };
+        var occupancy = new OccupancyRecord
+        {
+            ResidentProfileId = resident.Id,
+            CompoundId = compound.Id,
+            PropertyUnitId = unit.Id,
+            OccupancyStatus = OccupancyStatus.Active,
+            StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1))
+        };
+        dbContext.AddRange(compound, unit, resident, occupancy);
+        await dbContext.SaveChangesAsync();
+        var service = new VisitorPassService(dbContext);
+
+        var created = await service.CreateResidentAsync(
+            userId,
+            new CreateVisitorPassRequest
+            {
+                PropertyUnitId = unit.Id,
+                VisitorName = "Display Once Visitor",
+                VisitorPhoneNumber = "07700000000",
+                VisitReason = "Family visit",
+                ValidFrom = DateTime.UtcNow.AddMinutes(-5),
+                ValidUntil = DateTime.UtcNow.AddHours(2)
+            });
+
+        created.IsSuccess.Should().BeTrue(created.Message);
+        created.Value!.AccessCode.Should().StartWith("VP-");
+        var storedCode = await dbContext.VisitorPasses
+            .Where(pass => pass.Id == created.Value.Id)
+            .Select(pass => pass.AccessCode)
+            .SingleAsync();
+        storedCode.Should().NotBe(created.Value.AccessCode);
+        storedCode.Should().StartWith("AC2$");
+
+        var detail = await service.GetAdminAsync(created.Value.Id);
+        detail.Value!.AccessCode.Should().Be("********");
+
+        await service.ApproveAsync(created.Value.Id);
+        var guardUserId = Guid.NewGuid();
+        var guardService = new VisitorPassService(dbContext, GuardAccess(guardUserId, compound.Id));
+        var verified = await guardService.VerifyAccessCodeAsync(
+            guardUserId,
+            new VerifyVisitorPassAccessCodeRequest { AccessCode = created.Value.AccessCode });
+        verified.IsSuccess.Should().BeTrue(verified.Message);
+        verified.Value!.AccessCode.Should().Be("********");
     }
 
     private static FakeCompoundAccessService GuardAccess(Guid guardUserId, Guid compoundId)

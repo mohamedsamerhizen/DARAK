@@ -68,7 +68,7 @@ $blocked = @(Get-ChildItem -Path $root -Force -Recurse -ErrorAction SilentlyCont
     $insideGeneratedDirectory =
         $relative -match '(^|[\\/])(\.vs|\.vscode|bin|obj|TestResults|logs|coverage)([\\/]|$)' -or
         $relative -like 'DARAK.Api\App_Data\Uploads\*' -or
-        $relative -match '(^|[\\/])(_phase|_pack|_final|_backup_phase|_ef_repair_backup_|_tmp|tmp|_remediation|DARAK-REMEDIATION-)([\\/]|$)'
+        $relative -match '(^|[\\/])(_phase|_pack|_final|_backup_phase|_backup_batch|_artifact-backup-|_ef_repair_backup_|_tmp|tmp|_remediation|DARAK-REMEDIATION-)([\\/]|$)'
 
     $blockedFile = -not $_.PSIsContainer -and (
         $_.Name -eq ".env" -or
@@ -143,8 +143,8 @@ $developmentSettings = Get-Content (Join-Path $root "DARAK.Api\appsettings.Devel
 if ($developmentSettings -notmatch '"SecretKey"' -or $developmentSettings -match '"Key"\s*:') {
     throw "appsettings.Development.json must use Jwt:SecretKey, not Jwt:Key."
 }
-if ($developmentSettings -notmatch '"DevelopmentSuperAdmin"') {
-    throw "appsettings.Development.json must use DevelopmentSuperAdmin section."
+if ($developmentSettings -notmatch '"BootstrapAdmin"' -or $developmentSettings -notmatch '"Registration"') {
+    throw "appsettings.Development.json must use BootstrapAdmin and Registration sections."
 }
 if ($developmentSettings -match ('Darak_dev_' + '2026!') -or $developmentSettings -match "Password=(?!YOUR_)" -or $developmentSettings -match "sk_live_" -or $developmentSettings -match "xoxb-") {
     throw "appsettings.Development.json appears to contain real credentials. Keep it placeholder-only."

@@ -251,7 +251,13 @@ public sealed class CommercialCommunicationService(
         foreach (var recipient in recipients)
         {
             var preference = await GetOrCreatePreferenceAsync(recipient.UserId, cancellationToken);
-            var suppressionReason = GetSuppressionReason(preference, campaign.ScheduledAtUtc ?? now);
+            var suppressionReason = ResidentNotificationPreferencePolicy.GetSuppressionReason(
+                preference,
+                campaign.NotificationType,
+                campaign.Severity,
+                campaign.Priority,
+                campaign.ScheduledAtUtc ?? now,
+                requireCampaignEnabled: true);
             NotificationOutbox? outboxItem = null;
 
             if (suppressionReason is null)
@@ -709,36 +715,6 @@ public sealed class CommercialCommunicationService(
         return campaigns;
     }
 
-    private static string? GetSuppressionReason(ResidentNotificationPreference preference, DateTime scheduledAtUtc)
-    {
-        if (!preference.InAppEnabled)
-        {
-            return "In-app notifications are disabled.";
-        }
-
-        if (!preference.CampaignNotificationsEnabled)
-        {
-            return "Campaign notifications are disabled.";
-        }
-
-        if (!preference.DoNotDisturbEnabled
-            || !preference.DoNotDisturbStartLocalTime.HasValue
-            || !preference.DoNotDisturbEndLocalTime.HasValue)
-        {
-            return null;
-        }
-
-        var localTime = scheduledAtUtc.TimeOfDay;
-        var start = preference.DoNotDisturbStartLocalTime.Value;
-        var end = preference.DoNotDisturbEndLocalTime.Value;
-        var isInsideWindow = start <= end
-            ? localTime >= start && localTime <= end
-            : localTime >= start || localTime <= end;
-
-        return isInsideWindow ? "Do-not-disturb window is active." : null;
-    }
-
-
     private async Task<ServiceResult<T>?> SaveChangesWithConcurrencyGuardAsync<T>(CancellationToken cancellationToken)
     {
         try
@@ -871,5 +847,3 @@ public sealed class CommercialCommunicationService(
 
     private sealed record CampaignRecipientCandidate(Guid ResidentProfileId, Guid UserId, string FullName);
 }
-
-

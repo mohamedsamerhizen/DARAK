@@ -1,4 +1,5 @@
 using DARAK.Api.Data;
+using DARAK.Api.DTOs.Common;
 using DARAK.Api.DTOs.Reports;
 using DARAK.Api.DTOs.Support;
 using DARAK.Api.Entities;
@@ -280,7 +281,7 @@ public sealed class SupportAndReportingIntelligenceTests
         var completed = await service.CompleteExportJobAsync(userId, job.Value!.Id, new CompleteReportExportJobRequest
         {
             FileName = "financial.csv",
-            DownloadPath = "exports/financial.csv"
+            DownloadPath = "financial.csv"
         });
 
         saved.IsSuccess.Should().BeTrue(saved.Message);
@@ -288,6 +289,58 @@ public sealed class SupportAndReportingIntelligenceTests
         dbContext.ChangeTracker.Clear();
         (await dbContext.AuditLogEntries.CountAsync(item => item.ActionType == AuditActionType.SavedReportCreated)).Should().Be(1);
         dbContext.AuditLogEntries.Should().Contain(item => item.ActionType == AuditActionType.ReportExportCompleted);
+    }
+
+    [Fact]
+    public async Task CompleteExportJobAsync_RejectsTraversalAndLeavesJobQueued()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "P21-RJ-TRAV");
+        var service = CreateReportService(dbContext, compound.Id);
+        var job = await service.CreateExportJobAsync(Guid.NewGuid(), new CreateReportExportJobRequest
+        {
+            CompoundId = compound.Id,
+            ReportType = ManagementReportType.Financial,
+            Format = ReportExportFormat.Csv,
+            FilterJson = "{}"
+        });
+
+        var result = await service.CompleteExportJobAsync(Guid.NewGuid(), job.Value!.Id, new CompleteReportExportJobRequest
+        {
+            FileName = "../financial.csv",
+            DownloadPath = "financial.csv"
+        });
+
+        result.Status.Should().Be(ServiceResultStatus.BadRequest);
+        dbContext.ReportExportJobs.Single().Status.Should().Be(ReportExportJobStatus.Queued);
+        dbContext.ReportExportJobs.Single().FileName.Should().BeNull();
+        dbContext.AuditLogEntries.Should().NotContain(item => item.ActionType == AuditActionType.ReportExportCompleted);
+    }
+
+    [Fact]
+    public async Task CompleteExportJobAsync_StoresSanitizedPathInsideReportExportRoot()
+    {
+        await using var dbContext = TestDb.Create();
+        var compound = await AddCompoundAsync(dbContext, "P21-RJ-SAFE");
+        var service = CreateReportService(dbContext, compound.Id);
+        var job = await service.CreateExportJobAsync(Guid.NewGuid(), new CreateReportExportJobRequest
+        {
+            CompoundId = compound.Id,
+            ReportType = ManagementReportType.Financial,
+            Format = ReportExportFormat.Csv,
+            FilterJson = "{}"
+        });
+
+        var result = await service.CompleteExportJobAsync(Guid.NewGuid(), job.Value!.Id, new CompleteReportExportJobRequest
+        {
+            FileName = "financial<>summary",
+            DownloadPath = "ignored-client-name.csv"
+        });
+
+        result.IsSuccess.Should().BeTrue(result.Message);
+        result.Value!.FileName.Should().Be("financial__summary.csv");
+        result.Value.DownloadPath.Should().Be($"App_Data/Exports/Reports/{job.Value.Id:N}/financial__summary.csv");
+        result.Value.DownloadPath.Should().NotContain("..");
     }
 
     [Fact]

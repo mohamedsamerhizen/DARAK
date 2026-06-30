@@ -79,6 +79,32 @@ public sealed class PaymentService(
             IsolationLevel.Serializable,
             cancellationToken);
 
+        var idempotencyKey = TrimOrNull(request.IdempotencyKey);
+        if (idempotencyKey is not null)
+        {
+            var existingPayment = await GetPaymentDetailsQuery(asNoTracking: true)
+                .FirstOrDefaultAsync(payment => payment.IdempotencyKey == idempotencyKey, cancellationToken);
+            if (existingPayment is not null)
+            {
+                if (!await CanCurrentUserAccessCompoundAsync(existingPayment.CompoundId, cancellationToken))
+                {
+                    return ServiceResult<PaymentResponse>.Conflict("Idempotency key is already used by another payment.");
+                }
+
+                if (existingPayment.TargetType != request.TargetType
+                    || existingPayment.TargetId != request.TargetId
+                    || existingPayment.PaymentMethod != request.PaymentMethod
+                    || existingPayment.Amount != request.Amount)
+                {
+                    return ServiceResult<PaymentResponse>.Conflict("Idempotency key is already used for a different payment.");
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+                return ServiceResult<PaymentResponse>.Success(
+                    await ToPaymentResponseAsync(existingPayment, cancellationToken));
+            }
+        }
+
         var targetResult = await GetPaymentTargetForPaymentAsync(
             request.TargetType,
             request.TargetId,
@@ -106,6 +132,7 @@ public sealed class PaymentService(
             PaymentStatus = PaymentStatus.Succeeded,
             Amount = request.Amount,
             Currency = DefaultCurrency,
+            IdempotencyKey = idempotencyKey,
             PaymentReference = await GenerateUniquePaymentReferenceAsync(cancellationToken),
             CompletedAt = DateTime.UtcNow,
             Attempts =
@@ -379,6 +406,15 @@ public sealed class PaymentService(
         var target = targetResult.Target!;
         ApplySuccessfulPaymentToTarget(target, payment.Amount, payment.Id);
 
+        var providerTransactionId = await ResolveMockProviderTransactionIdAsync(
+            payment,
+            request.ProviderTransactionId,
+            cancellationToken);
+        if (providerTransactionId.Failure is not null)
+        {
+            return ToResult<PaymentResponse>(providerTransactionId.Failure);
+        }
+
         payment.PaymentStatus = PaymentStatus.Succeeded;
         payment.CompletedAt = DateTime.UtcNow;
         payment.UpdatedAt = DateTime.UtcNow;
@@ -387,7 +423,7 @@ public sealed class PaymentService(
             PaymentId = payment.Id,
             AttemptStatus = PaymentStatus.Succeeded,
             Provider = payment.PaymentMethod.ToString(),
-            ProviderTransactionId = TrimOrNull(request.ProviderTransactionId),
+            ProviderTransactionId = providerTransactionId.Value,
             Message = TrimOrNull(request.Message) ?? "Mock payment succeeded."
         });
 
@@ -447,6 +483,14 @@ public sealed class PaymentService(
         }
 
         var failureReason = TrimOrNull(request.Message) ?? "Mock payment failed.";
+        var providerTransactionId = await ResolveMockProviderTransactionIdAsync(
+            payment,
+            request.ProviderTransactionId,
+            cancellationToken);
+        if (providerTransactionId.Failure is not null)
+        {
+            return ToResult<PaymentResponse>(providerTransactionId.Failure);
+        }
 
         payment.PaymentStatus = PaymentStatus.Failed;
         payment.FailureReason = failureReason;
@@ -456,7 +500,7 @@ public sealed class PaymentService(
             PaymentId = payment.Id,
             AttemptStatus = PaymentStatus.Failed,
             Provider = payment.PaymentMethod.ToString(),
-            ProviderTransactionId = TrimOrNull(request.ProviderTransactionId),
+            ProviderTransactionId = providerTransactionId.Value,
             Message = failureReason
         });
 
@@ -587,6 +631,11 @@ public sealed class PaymentService(
         {
             return ServiceResult<PaymentResponse>.Conflict(
                 "The financial target was changed by another operation. Reload and try again.");
+        }
+        catch (DbUpdateException)
+        {
+            return ServiceResult<PaymentResponse>.Conflict(
+                "A duplicate payment idempotency key, payment reference, or provider transaction reference was detected.");
         }
     }
 
@@ -767,6 +816,44 @@ public sealed class PaymentService(
             }
         }
 
+        var paymentPlanInstallmentIds = payments
+            .Where(payment => payment.TargetType == PaymentTargetType.PaymentPlanInstallment)
+            .Select(payment => payment.TargetId)
+            .Distinct()
+            .ToArray();
+        if (paymentPlanInstallmentIds.Length > 0)
+        {
+            foreach (var item in await dbContext.PaymentPlanInstallments
+                .AsNoTracking()
+                .Include(installment => installment.PaymentPlan)
+                .Where(installment => paymentPlanInstallmentIds.Contains(installment.Id))
+                .Select(installment => new
+                {
+                    installment.Id,
+                    Reference = "Payment plan installment " + installment.InstallmentNumber
+                })
+                .ToArrayAsync(cancellationToken))
+            {
+                references[item.Id] = item.Reference;
+            }
+        }
+
+        var propertySaleContractIds = payments
+            .Where(payment => payment.TargetType == PaymentTargetType.PropertySaleContract)
+            .Select(payment => payment.TargetId)
+            .Distinct()
+            .ToArray();
+        if (propertySaleContractIds.Length > 0)
+        {
+            foreach (var item in await dbContext.PropertySaleContracts
+                .AsNoTracking()
+                .Where(contract => propertySaleContractIds.Contains(contract.Id))
+                .Select(contract => new { contract.Id, contract.ContractNumber })
+                .ToArrayAsync(cancellationToken))
+            {
+                references[item.Id] = item.ContractNumber;
+            }
+        }
 
         return references;
     }
@@ -1136,6 +1223,32 @@ public sealed class PaymentService(
             PaymentStatus.Refunded => new ValidationFailure(ServiceResultStatus.Conflict, "Refunded payment cannot be confirmed."),
             _ => new ValidationFailure(ServiceResultStatus.BadRequest, "Payment cannot be confirmed.")
         };
+    }
+
+    private async Task<(string? Value, ValidationFailure? Failure)> ResolveMockProviderTransactionIdAsync(
+        Payment payment,
+        string? requestedProviderTransactionId,
+        CancellationToken cancellationToken)
+    {
+        var provider = payment.PaymentMethod.ToString();
+        var providerTransactionId = TrimOrNull(requestedProviderTransactionId)
+            ?? $"MOCK-{provider}-{payment.Id:N}";
+
+        var duplicateExists = await dbContext.PaymentAttempts
+            .AsNoTracking()
+            .AnyAsync(attempt =>
+                attempt.Provider == provider
+                && attempt.ProviderTransactionId == providerTransactionId
+                && attempt.PaymentId != payment.Id,
+                cancellationToken);
+        if (duplicateExists)
+        {
+            return (null, new ValidationFailure(
+                ServiceResultStatus.Conflict,
+                "Provider transaction id is already linked to another payment."));
+        }
+
+        return (providerTransactionId, null);
     }
 
     private static void ApplySuccessfulPaymentToTarget(

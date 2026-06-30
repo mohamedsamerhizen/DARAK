@@ -104,6 +104,9 @@ public sealed class DenyContractorWorkPermitRequest
 
 public sealed class GuardContractorPermitAccessRequest
 {
+    [MaxLength(100)]
+    public string? AccessCode { get; init; }
+
     [MaxLength(500)]
     public string? Notes { get; init; }
 }
@@ -434,4 +437,3 @@ public sealed record GuardShiftHandoverReportResponse(
     string HandoverSummary,
     IReadOnlyList<AccessAuditTrailItemResponse> RecentAccessEvents,
     IReadOnlyList<AccessSecurityCommandQueueItemResponse> OpenSecurityActions);
-

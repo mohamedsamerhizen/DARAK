@@ -13,10 +13,12 @@ namespace DARAK.Api.Services;
 
 public sealed class VisitorPassService(
     ApplicationDbContext dbContext,
-    ICompoundAccessService? compoundAccessService = null)
+    ICompoundAccessService? compoundAccessService = null,
+    IAccessCodeHasher? accessCodeHasher = null)
     : IVisitorPassService
 {
     private const string MaskedAccessCode = "********";
+    private readonly IAccessCodeHasher accessCodeHasher = accessCodeHasher ?? new AccessCodeHasher();
 
     public async Task<PagedResult<VisitorPassResponse>> SearchAdminAsync(
         VisitorPassSearchQuery query,
@@ -213,6 +215,7 @@ public sealed class VisitorPassService(
             return ServiceResult<VisitorPassResponse>.NotFound("Active resident occupancy was not found for this unit.");
         }
 
+        var accessCode = await GenerateUniqueAccessCodeAsync(cancellationToken);
         var visitorPass = new VisitorPass
         {
             ResidentProfileId = occupancy.ResidentProfileId,
@@ -221,7 +224,7 @@ public sealed class VisitorPassService(
             VisitorName = request.VisitorName.Trim(),
             VisitorPhoneNumber = request.VisitorPhoneNumber.Trim(),
             VisitReason = request.VisitReason.Trim(),
-            AccessCode = await GenerateUniqueAccessCodeAsync(cancellationToken),
+            AccessCode = accessCodeHasher.Hash(accessCode),
             ValidFrom = request.ValidFrom,
             ValidUntil = request.ValidUntil
         };
@@ -233,7 +236,10 @@ public sealed class VisitorPassService(
             return concurrencyFailure;
         }
 
-        return await GetAdminAsync(visitorPass.Id, cancellationToken);
+        var created = await GetVisibleResidentPassAsync(userId, visitorPass.Id, asNoTracking: true, cancellationToken);
+        return created is null
+            ? ServiceResult<VisitorPassResponse>.NotFound("Visitor pass was not found.")
+            : ServiceResult<VisitorPassResponse>.Success(ToVisitorPassResponse(created, accessCode));
     }
 
     public async Task<ServiceResult<VisitorPassResponse>> CancelResidentAsync(
@@ -282,12 +288,12 @@ public sealed class VisitorPassService(
         }
 
         var visitorPasses = await ApplyGuardCompoundScopeAsync(
-            GetVisitorPassDetailsQuery(asNoTracking: true),
+            GetVisitorPassDetailsQuery(asNoTracking: false),
             guardUserId,
             cancellationToken);
 
-        var visitorPass = await visitorPasses
-            .FirstOrDefaultAsync(pass => pass.AccessCode == accessCode, cancellationToken);
+        var candidatePasses = await visitorPasses.ToArrayAsync(cancellationToken);
+        var visitorPass = candidatePasses.FirstOrDefault(pass => accessCodeHasher.Verify(accessCode, pass.AccessCode));
 
         if (visitorPass is null || !IsVisibleToGuard(visitorPass))
         {
@@ -297,6 +303,20 @@ public sealed class VisitorPassService(
         if (visitorPass.Status == VisitorPassStatus.Pending)
         {
             return ServiceResult<VisitorPassResponse>.BadRequest("Visitor pass is pending admin approval.");
+        }
+
+        dbContext.VisitorAccessLogs.Add(new VisitorAccessLog
+        {
+            VisitorPassId = visitorPass.Id,
+            GuardUserId = guardUserId,
+            Action = VisitorAccessAction.Verified,
+            Notes = "Visitor access code verified."
+        });
+
+        var concurrencyFailure = await SaveChangesWithConcurrencyGuardAsync<VisitorPassResponse>(cancellationToken);
+        if (concurrencyFailure is not null)
+        {
+            return concurrencyFailure;
         }
 
         return ServiceResult<VisitorPassResponse>.Success(ToVisitorPassResponse(visitorPass));
@@ -316,7 +336,7 @@ public sealed class VisitorPassService(
             return ServiceResult<VisitorPassResponse>.NotFound("Visitor pass was not found.");
         }
 
-        return ServiceResult<VisitorPassResponse>.Success(ToVisitorPassResponse(visitorPass, includeAccessCode: false));
+        return ServiceResult<VisitorPassResponse>.Success(ToVisitorPassResponse(visitorPass));
     }
 
     public async Task<ServiceResult<VisitorPassResponse>> CheckInAsync(
@@ -341,8 +361,16 @@ public sealed class VisitorPassService(
             return ServiceResult<VisitorPassResponse>.NotFound("Visitor pass was not found.");
         }
 
-        if (!string.Equals(providedAccessCode, visitorPass.AccessCode, StringComparison.OrdinalIgnoreCase))
+        if (!accessCodeHasher.Verify(providedAccessCode, visitorPass.AccessCode))
         {
+            dbContext.VisitorAccessLogs.Add(new VisitorAccessLog
+            {
+                VisitorPassId = visitorPass.Id,
+                GuardUserId = guardUserId,
+                Action = VisitorAccessAction.CredentialFailed,
+                Notes = "Invalid visitor access code."
+            });
+            await dbContext.SaveChangesAsync(cancellationToken);
             return ServiceResult<VisitorPassResponse>.BadRequest("Visitor access code is invalid.");
         }
 
@@ -534,7 +562,6 @@ public sealed class VisitorPassService(
         {
             visitorPasses = visitorPasses.Where(pass =>
                 pass.VisitorName.Contains(searchTerm)
-                || pass.AccessCode.Contains(searchTerm)
                 || pass.PropertyUnit.UnitNumber.Contains(searchTerm));
         }
 
@@ -638,21 +665,10 @@ public sealed class VisitorPassService(
             .ToArrayAsync(cancellationToken);
     }
 
-    private async Task<string> GenerateUniqueAccessCodeAsync(CancellationToken cancellationToken)
+    private static Task<string> GenerateUniqueAccessCodeAsync(CancellationToken cancellationToken)
     {
-        for (var attempt = 0; attempt < 20; attempt++)
-        {
-            var code = $"VP-{DateTime.UtcNow:yyyyMMdd}-{GenerateSecureCodeSegment(12)}";
-            var exists = await dbContext.VisitorPasses
-                .AsNoTracking()
-                .AnyAsync(pass => pass.AccessCode == code, cancellationToken);
-            if (!exists)
-            {
-                return code;
-            }
-        }
-
-        return $"VP-{DateTime.UtcNow:yyyyMMdd}-{GenerateSecureCodeSegment(16)}";
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult($"VP-{DateTime.UtcNow:yyyyMMdd}-{GenerateSecureCodeSegment(12)}");
     }
 
     private static string GenerateSecureCodeSegment(int length)
@@ -717,7 +733,7 @@ public sealed class VisitorPassService(
         return null;
     }
 
-    private static VisitorPassResponse ToVisitorPassResponse(VisitorPass visitorPass, bool includeAccessCode = true)
+    private static VisitorPassResponse ToVisitorPassResponse(VisitorPass visitorPass, string? displayOnceAccessCode = null)
     {
         return new VisitorPassResponse(
             visitorPass.Id,
@@ -730,7 +746,7 @@ public sealed class VisitorPassService(
             visitorPass.VisitorName,
             visitorPass.VisitorPhoneNumber,
             visitorPass.VisitReason,
-            includeAccessCode ? visitorPass.AccessCode : MaskedAccessCode,
+            displayOnceAccessCode ?? MaskedAccessCode,
             visitorPass.Status,
             visitorPass.ValidFrom,
             visitorPass.ValidUntil,
@@ -755,7 +771,7 @@ public sealed class VisitorPassService(
             visitorPass.VisitorName,
             visitorPass.VisitorPhoneNumber,
             visitorPass.VisitReason,
-            includeAccessCode ? visitorPass.AccessCode : MaskedAccessCode,
+            MaskedAccessCode,
             visitorPass.Status,
             visitorPass.ValidFrom,
             visitorPass.ValidUntil,
@@ -837,7 +853,4 @@ public sealed class VisitorPassService(
 
     private sealed record ValidationFailure(ServiceResultStatus Status, string Message);
 }
-
-
-
 

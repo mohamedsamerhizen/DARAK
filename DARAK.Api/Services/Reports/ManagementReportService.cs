@@ -17,6 +17,8 @@ public sealed class ManagementReportService(
     IAuditLogService auditLogService)
     : IManagementReportService
 {
+    private const string ReportExportStorageRoot = "App_Data/Exports/Reports";
+
     public async Task<ServiceResult<FinancialManagementReportResponse>> GetFinancialReportAsync(
         ManagementReportQuery query,
         CancellationToken cancellationToken = default)
@@ -366,9 +368,15 @@ public sealed class ManagementReportService(
             return ServiceResult<ReportExportJobResponse>.Conflict("Report export job is already finalized.");
         }
 
+        var exportLocation = BuildSafeExportLocation(request.FileName, request.DownloadPath, job.Id, job.Format);
+        if (exportLocation.Error is not null)
+        {
+            return ServiceResult<ReportExportJobResponse>.BadRequest(exportLocation.Error);
+        }
+
         job.Status = ReportExportJobStatus.Completed;
-        job.FileName = Truncate(request.FileName, 300);
-        job.DownloadPath = Truncate(request.DownloadPath, 1000);
+        job.FileName = exportLocation.FileName;
+        job.DownloadPath = exportLocation.RelativePath;
         job.CompletedAtUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -518,6 +526,68 @@ public sealed class ManagementReportService(
         }
     }
 
+    private static (string? FileName, string? RelativePath, string? Error) BuildSafeExportLocation(
+        string fileName,
+        string requestedDownloadPath,
+        Guid jobId,
+        ReportExportFormat format)
+    {
+        var trimmedFileName = fileName.Trim();
+        var trimmedRequestedPath = requestedDownloadPath.Trim();
+
+        if (ContainsPathTraversalOrRoot(trimmedFileName))
+        {
+            return (null, null, "Export file name cannot contain path segments, traversal, or drive roots.");
+        }
+
+        if (ContainsPathTraversalOrRoot(trimmedRequestedPath))
+        {
+            return (null, null, "Export download path cannot contain traversal, absolute paths, or drive roots.");
+        }
+
+        var safeFileName = SanitizeFileName(trimmedFileName);
+        if (string.IsNullOrWhiteSpace(safeFileName))
+        {
+            return (null, null, "Export file name is invalid.");
+        }
+
+        var expectedExtension = format == ReportExportFormat.Json ? ".json" : ".csv";
+        var extension = Path.GetExtension(safeFileName);
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            safeFileName += expectedExtension;
+        }
+        else if (!string.Equals(extension, expectedExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return (null, null, $"Export file name must use the {expectedExtension} extension.");
+        }
+
+        safeFileName = Truncate(safeFileName, 300)!;
+        var relativePath = $"{ReportExportStorageRoot}/{jobId:N}/{safeFileName}";
+        return (safeFileName, relativePath, null);
+    }
+
+    private static bool ContainsPathTraversalOrRoot(string value)
+    {
+        return value.Contains("..", StringComparison.Ordinal)
+            || value.Contains('/')
+            || value.Contains('\\')
+            || Path.IsPathRooted(value)
+            || (value.Length >= 2 && char.IsLetter(value[0]) && value[1] == ':');
+    }
+
+    private static string SanitizeFileName(string fileName)
+    {
+        var invalidChars = Path.GetInvalidFileNameChars()
+            .Concat(['<', '>', ':', '"', '/', '\\', '|', '?', '*'])
+            .ToHashSet();
+        var sanitized = new string(fileName
+            .Select(character => invalidChars.Contains(character) ? '_' : character)
+            .ToArray());
+
+        return sanitized.Trim().Trim('.');
+    }
+
     private static string? Truncate(string? value, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -528,5 +598,4 @@ public sealed class ManagementReportService(
         return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
     }
 }
-
 

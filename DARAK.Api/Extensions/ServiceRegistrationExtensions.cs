@@ -13,6 +13,7 @@ public static class ServiceRegistrationExtensions
 
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+        services.AddSingleton<IAccessCodeHasher, AccessCodeHasher>();
         services.AddScoped<ICompoundAccessService, CompoundAccessService>();
         services.AddScoped<IUserCompoundAssignmentService, UserCompoundAssignmentService>();
         services.AddScoped<IAdminUserService, AdminUserService>();

@@ -44,6 +44,17 @@ public interface IProcurementInventoryService
         CreatePurchaseOrderRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<ServiceResult<PurchaseOrderResponse>> ApprovePurchaseOrderAsync(
+        Guid purchaseOrderId,
+        Guid? currentUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<PurchaseOrderResponse>> CancelPurchaseOrderAsync(
+        Guid purchaseOrderId,
+        Guid? currentUserId,
+        CancelPurchaseOrderRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<PagedResult<PurchaseOrderResponse>> SearchPurchaseOrdersAsync(
         PurchaseOrderQueryRequest query,
         CancellationToken cancellationToken = default);

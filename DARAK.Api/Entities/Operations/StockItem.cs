@@ -32,5 +32,7 @@ public sealed class StockItem
 
     public DateTime? UpdatedAtUtc { get; set; }
 
+    public byte[] RowVersion { get; set; } = [];
+
     public ICollection<InventoryMovement> InventoryMovements { get; set; } = new List<InventoryMovement>();
 }

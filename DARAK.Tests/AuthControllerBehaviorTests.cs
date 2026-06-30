@@ -1,4 +1,5 @@
 ﻿using DARAK.Api.DTOs;
+using DARAK.Api.Authentication;
 using DARAK.Api.Enums;
 using DARAK.Api.Identity;
 using DARAK.Api.Interfaces;
@@ -6,13 +7,14 @@ using DARAK.Api.Controllers;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace DARAK.Tests;
 
 public sealed class AuthControllerBehaviorTests
 {
     [Fact]
-    public async Task Register_AssignsResidentRoleButDoesNotIssueTokensBeforeEmailConfirmation()
+    public async Task Register_AssignsResidentRoleButDoesNotIssueTokensBeforeConfirmationWhenAutoConfirmDisabled()
     {
         await using var dbContext = TestDb.Create();
         var userManager = IdentityTestHelpers.CreateUserManager(dbContext);
@@ -34,7 +36,83 @@ public sealed class AuthControllerBehaviorTests
         var user = await userManager.FindByEmailAsync("resident-register@test.local");
         user.Should().NotBeNull();
         user!.EmailConfirmed.Should().BeFalse();
-        (await userManager.IsInRoleAsync(user, nameof(UserRole.Resident))).Should().BeTrue();
+        var roles = await userManager.GetRolesAsync(user);
+        roles.Should().Equal(nameof(UserRole.Resident));
+        roles.Should().NotContain(nameof(UserRole.SuperAdmin));
+        refreshTokenService.CreatedForUserId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Register_WhenAutoConfirmEnabled_CreatesUsableResidentLoginWithoutRoleEscalation()
+    {
+        await using var dbContext = TestDb.Create();
+        var userManager = IdentityTestHelpers.CreateUserManager(dbContext);
+        var roleManager = IdentityTestHelpers.CreateRoleManager(dbContext);
+        await IdentityTestHelpers.SeedRolesAsync(roleManager);
+        var refreshTokenService = new FakeRefreshTokenService();
+        var controller = CreateController(
+            userManager,
+            refreshTokenService,
+            new RegistrationOptions
+            {
+                EnablePublicRegistration = true,
+                AutoConfirmRegisteredUsers = true
+            });
+
+        var registerResult = await controller.Register(
+            new RegisterRequest
+            {
+                FullName = "Auto Confirm Resident",
+                Email = "auto-confirm-register@test.local",
+                Password = "StrongPass1!"
+            },
+            CancellationToken.None);
+
+        registerResult.Result.Should().BeOfType<AcceptedResult>();
+        var user = await userManager.FindByEmailAsync("auto-confirm-register@test.local");
+        user.Should().NotBeNull();
+        user!.EmailConfirmed.Should().BeTrue();
+        var roles = await userManager.GetRolesAsync(user);
+        roles.Should().Equal(nameof(UserRole.Resident));
+        roles.Should().NotContain(nameof(UserRole.SuperAdmin));
+
+        var loginResult = await controller.Login(
+            new LoginRequest { Email = "auto-confirm-register@test.local", Password = "StrongPass1!" },
+            CancellationToken.None);
+
+        loginResult.Result.Should().BeOfType<OkObjectResult>();
+        refreshTokenService.CreatedForUserId.Should().Be(user.Id);
+    }
+
+    [Fact]
+    public async Task Register_WhenPublicRegistrationDisabled_ReturnsForbiddenAndDoesNotCreateUser()
+    {
+        await using var dbContext = TestDb.Create();
+        var userManager = IdentityTestHelpers.CreateUserManager(dbContext);
+        var refreshTokenService = new FakeRefreshTokenService();
+        var controller = CreateController(
+            userManager,
+            refreshTokenService,
+            new RegistrationOptions
+            {
+                EnablePublicRegistration = false,
+                AutoConfirmRegisteredUsers = false
+            });
+
+        var result = await controller.Register(
+            new RegisterRequest
+            {
+                FullName = "Blocked Resident",
+                Email = "blocked-register@test.local",
+                Password = "StrongPass1!"
+            },
+            CancellationToken.None);
+
+        var forbidden = result.Result.Should().BeOfType<ObjectResult>().Subject;
+        forbidden.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        var error = forbidden.Value.Should().BeOfType<ApiErrorResponse>().Subject;
+        error.Message.Should().Be("Public registration is disabled. Contact an administrator for account provisioning.");
+        (await userManager.FindByEmailAsync("blocked-register@test.local")).Should().BeNull();
         refreshTokenService.CreatedForUserId.Should().BeNull();
     }
 
@@ -224,9 +302,17 @@ public sealed class AuthControllerBehaviorTests
 
     private static AuthController CreateController(
         Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager,
-        IRefreshTokenService refreshTokenService)
+        IRefreshTokenService refreshTokenService,
+        RegistrationOptions? registrationOptions = null)
     {
-        return new AuthController(userManager, refreshTokenService)
+        return new AuthController(
+            userManager,
+            refreshTokenService,
+            Options.Create(registrationOptions ?? new RegistrationOptions
+            {
+                EnablePublicRegistration = true,
+                AutoConfirmRegisteredUsers = false
+            }))
         {
             ControllerContext = new ControllerContext
             {

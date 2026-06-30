@@ -1,30 +1,93 @@
 # DARAK Testing Evidence
 
-## Latest Phase
+This file explains how test claims must be recorded.
 
-Phase 9 adds final commercial completion documentation, a final release gate script, and governance tests. It does not introduce a database migration.
+Status: **Recorded in `docs/Verification-Evidence.md`**
 
-## Required Local Evidence
+---
 
-Record the output of:
+## Evidence Rule
 
-```powershell
-dotnet clean .\DARAK.sln
-dotnet build .\DARAK.sln --no-incremental
-dotnet test .\DARAK.sln --no-build
+Do not claim that tests passed unless the command was executed against the exact source tree being published or presented.
+
+Correct wording before execution:
+
+```text
+The repository includes an automated test suite.
 ```
 
-## Expected Verification Areas
+Correct wording after execution:
 
-- Authentication and authorization.
-- Compound scope boundaries.
+```text
+The test suite was executed on <date> and produced <actual result>.
+```
+
+Incorrect wording without proof:
+
+```text
+617 tests passed.
+```
+
+---
+
+## Required Local Test Command
+
+```powershell
+dotnet restore .\DARAK.sln
+dotnet build .\DARAK.sln --configuration Release --no-restore
+dotnet test .\DARAK.sln --configuration Release --no-build
+```
+
+The latest recorded local run is:
+
+```text
+Passed! - Failed: 0, Passed: 677, Skipped: 0, Total: 677, Duration: 43 s - DARAK.Tests.dll (net10.0)
+```
+
+The full command output is recorded in `docs/Verification-Evidence.md`.
+
+---
+
+## Recommended Evidence Types
+
+- Console output from `dotnet test`.
+- TRX test result file generated locally or in CI.
+- GitHub Actions run URL after publishing.
+- SQL Server-backed integration test output when available.
+
+Do not commit TRX/TestResults folders unless the repository intentionally stores release evidence. Prefer attaching artifacts to release notes or keeping them outside source control.
+
+---
+
+## Test Quality Expectations
+
+The test suite should protect:
+
+- Authentication and refresh-token behavior.
+- Role and endpoint authorization boundaries.
+- Compound/tenant isolation.
 - Resident privacy.
-- Billing, payments, receipts, and dispute foundations.
-- Documents, compliance, and upload safety.
-- Visitor and guard workflows.
-- Maintenance, complaints, operations, and approvals.
-- Notifications, audit, reporting, and commercial readiness.
+- Financial correctness and duplicate-payment prevention.
+- Ledger/payment/bill/rent/installment consistency.
+- Visitor/guard access workflows.
+- Maintenance/SLA/preventive generation behavior.
+- Procurement/inventory integrity.
+- Notification outbox behavior.
+- Migration and schema governance.
+- Documentation and GitHub readiness checks.
 
-## Final Evidence Rule
+---
 
-Attach the terminal test summary to the final delivery notes. Do not claim production readiness without a successful build, test run, and clean release archive.
+## SQL Server Integration Evidence
+
+EF InMemory tests are useful, but they do not fully prove:
+
+- Foreign key behavior.
+- Unique indexes.
+- Delete behaviors.
+- Decimal precision.
+- SQL transactions.
+- Concurrency behavior.
+- Migration compatibility.
+
+The suite includes optional SQL Server-backed tests. Release evidence must state whether they were actually run against SQL Server for the exact source tree.

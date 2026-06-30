@@ -8,5 +8,7 @@ public enum FinancialLedgerSourceType
     ViolationFine = 4,
     Payment = 5,
     Refund = 6,
-    FinancialAdjustment = 7
+    FinancialAdjustment = 7,
+    PaymentPlanInstallment = 8,
+    PropertySaleContract = 9
 }

@@ -56,6 +56,25 @@ public sealed class VisitorAccessControlPass17Tests
         result.Value.AccessCode.Should().Be("********");
     }
 
+    [Fact]
+    public async Task Phase6_CheckInAsync_WrongAccessCodeFailsAndAuditsWithoutSecret()
+    {
+        await using var dbContext = TestDb.Create();
+        var guardUserId = Guid.NewGuid();
+        var seed = await SeedVisitorPassAsync(dbContext, VisitorPassStatus.Approved, "VP-20260620-APPROVED2");
+        var service = new VisitorPassService(dbContext, GuardAccess(guardUserId, seed.CompoundId));
+
+        var result = await service.CheckInAsync(
+            seed.PassId,
+            guardUserId,
+            new VisitorPassAccessRequest { AccessCode = "WRONG-CODE" });
+
+        result.Status.Should().Be(ServiceResultStatus.BadRequest);
+        var log = dbContext.VisitorAccessLogs.Should().ContainSingle().Subject;
+        log.Action.Should().Be(VisitorAccessAction.CredentialFailed);
+        log.Notes.Should().NotContain("WRONG-CODE");
+    }
+
     private static FakeCompoundAccessService GuardAccess(Guid guardUserId, Guid compoundId)
     {
         return new FakeCompoundAccessService(
