@@ -138,7 +138,19 @@ Failed: 0
 Skipped: 0
 ```
 
-Final GitHub-ready verification for the current source tree must be read from `docs/Verification-Evidence.md`.
+Latest final GitHub-ready evidence recorded on 2026-06-30:
+
+```text
+dotnet restore .\DARAK.sln
+dotnet build .\DARAK.sln --configuration Release --no-restore
+dotnet test .\DARAK.sln --configuration Release --no-build
+
+Passed: 677
+Failed: 0
+Skipped: 0
+```
+
+Final verification for the current source tree must still be read from `docs/Verification-Evidence.md` and refreshed whenever backend code changes.
 
 ## InMemory Tests
 

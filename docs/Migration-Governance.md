@@ -1,4 +1,4 @@
-# DARAK EF Migration Governance
+﻿# DARAK EF Migration Governance
 
 ## Purpose
 
@@ -35,7 +35,7 @@ No migration is required for:
 ## Safe Migration Workflow
 
 ```powershell
-cd C:\Users\lenovo\Desktop\DARAK
+cd <repo-root>
 
 dotnet clean .\DARAK.sln
 dotnet build .\DARAK.sln --no-incremental
@@ -99,9 +99,9 @@ Future empty migrations must be removed immediately before commit unless a writt
 
 These migrations are treated as intentional manual remediation migrations and are allowlisted by exact file name:
 
-- `20260613121500_Phase3ARowVersionConcurrencyHandlers.cs` — rowversion/concurrency remediation.
-- `20260613133000_Phase3BIndexesAndOutboxAtomicity.cs` — operational indexes and outbox atomicity remediation.
-- `20260613143000_Phase5AOwnershipOccupancyLifecycle.cs` — ownership/occupancy lifecycle uniqueness remediation.
+- `20260613121500_Phase3ARowVersionConcurrencyHandlers.cs` â€” rowversion/concurrency remediation.
+- `20260613133000_Phase3BIndexesAndOutboxAtomicity.cs` â€” operational indexes and outbox atomicity remediation.
+- `20260613143000_Phase5AOwnershipOccupancyLifecycle.cs` â€” ownership/occupancy lifecycle uniqueness remediation.
 
 Future manual migrations must include a governance note explaining why EF generation was not used and what schema contract is being changed.
 
@@ -114,3 +114,4 @@ The `Phase3A`, `Phase3B`, and `Phase5A` migration names above are retrospective 
 The official commercial source package must not bypass the strongest schema-drift gate. `tools/New-CommercialReleasePackage.ps1` must call `tools/Test-FinalReleaseGate.ps1`, which delegates to `tools/Test-Phase1FinalHardening.ps1`.
 
 If database checks are skipped for packaging, the operator must provide a separate evidence file through `-EvidencePath`. That evidence must belong to the exact source tree being packaged and must include build, test, EF database update or pending-model-check evidence, and final gate output.
+

@@ -40,7 +40,14 @@ This file records security expectations for the current GitHub-ready backend pac
 ## Operational Notes
 
 - Swagger should remain Development-only.
+- Swagger and terminal screenshots must not include bearer tokens, refresh tokens, cookies, passwords, connection strings, provider keys, or real resident data.
 - Real email/SMS providers are not configured in this backend package.
 - Notification preferences suppress optional communications; critical/urgent operational notices bypass opt-outs.
 - Report export completion stores sanitized filenames under the controlled report export root and rejects traversal or absolute paths.
 - Production deployments need real secret management, monitoring, backup, and incident response plans.
+
+## Related Docs
+
+- `docs/Environment-Variables-Reference.md`
+- `docs/Screenshot-Capture-Guide.md`
+- `docs/Known-Limitations.md`

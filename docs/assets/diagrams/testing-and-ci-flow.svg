@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">DARAK testing and CI flow</title>
+  <desc id="desc">Testing and CI flow for DARAK backend.</desc>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f8fafc"/></marker></defs>
+  <style>.bg{fill:#0f172a}.title{font:700 40px Arial,sans-serif;fill:#f8fafc}.sub{font:400 18px Arial,sans-serif;fill:#cbd5e1}.box{fill:#111827;stroke:#a78bfa;stroke-width:2;rx:16}.ok{fill:#052e2b;stroke:#34d399;stroke-width:2;rx:16}.text{font:700 20px Arial,sans-serif;fill:#fff}.small{font:400 14px Arial,sans-serif;fill:#e9d5ff}.line{stroke:#f8fafc;stroke-width:3;marker-end:url(#a)}</style>
+  <rect width="1280" height="720" class="bg"/>
+  <text x="64" y="76" class="title">Testing and CI Flow</text>
+  <text x="64" y="110" class="sub">Release verification combines restore, build, broad xUnit coverage, EF checks, and optional SQL integration.</text>
+  <rect x="85" y="235" width="185" height="105" class="box"/><text x="120" y="276" class="text">Restore</text><text x="120" y="304" class="small">NuGet dependencies</text>
+  <rect x="340" y="235" width="185" height="105" class="box"/><text x="375" y="276" class="text">Build</text><text x="375" y="304" class="small">Release, no restore</text>
+  <rect x="595" y="235" width="185" height="105" class="box"/><text x="630" y="276" class="text">Tests</text><text x="630" y="304" class="small">xUnit regression suite</text>
+  <rect x="850" y="235" width="185" height="105" class="box"/><text x="885" y="276" class="text">EF Checks</text><text x="885" y="304" class="small">Migrations and model</text>
+  <rect x="470" y="455" width="340" height="105" class="ok"/><text x="515" y="496" class="text">GitHub Actions</text><text x="515" y="524" class="small">Release build/test plus SQL Server job</text>
+  <path d="M270 288 H340" class="line"/><path d="M525 288 H595" class="line"/><path d="M780 288 H850" class="line"/><path d="M688 340 V455" class="line"/>
+  <text x="64" y="650" class="sub">Latest local Release test evidence is recorded in docs/Verification-Evidence.md.</text>
+</svg>

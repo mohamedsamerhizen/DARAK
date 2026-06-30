@@ -45,3 +45,13 @@ $env:DemoSeed__DemoPassword = "Use-A-Strong-Local-Demo-Password1!"
 ```
 
 Then start the API or call the seeder from tests. Do not commit real demo passwords.
+
+## Screenshot And Demo Use
+
+Use demo data for local Swagger exploration and screenshots only after the API is running successfully. Do not use real resident, payment, contact, or access-control data in screenshots.
+
+Related docs:
+
+- `docs/Screenshot-Capture-Guide.md`
+- `docs/Verification-Evidence.md`
+- `docs/Known-Limitations.md`

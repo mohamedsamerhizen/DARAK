@@ -52,6 +52,10 @@ The backend source alone does not include:
 
 The backend has substantial domain coverage, but it is not a complete production SaaS without frontend clients, real provider integrations, production operations, SQL Server evidence, security hardening, and deployment ownership.
 
+### 10. Swagger screenshot capture currently needs a schema-name fix
+
+A real local Swagger screenshot attempt reached Swagger UI, but OpenAPI JSON generation failed because two DTOs share the `SupportDashboardResponse` schema name. No fake screenshot is committed. Resolve the duplicate schema ID issue before adding Swagger screenshots to `docs/assets/screenshots/`.
+
 ---
 
 ## Correct Public Positioning
@@ -70,3 +74,10 @@ DARAK is commercially verified.
 All tests passed.
 Final hardening is complete.
 ```
+
+## Related Docs
+
+- `README.md`
+- `docs/Screenshot-Capture-Guide.md`
+- `docs/Verification-Evidence.md`
+- `docs/GitHub-Profile-Setup.md`

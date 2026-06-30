@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">DARAK financial workflow</title>
+  <desc id="desc">Financial workflow diagram for billing, payments, receipts, and ledger.</desc>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#7dd3fc"/></marker></defs>
+  <style>.bg{fill:#08111f}.title{font:700 40px Arial,sans-serif;fill:#f8fafc}.sub{font:400 18px Arial,sans-serif;fill:#cbd5e1}.box{fill:#0f172a;stroke:#22c55e;stroke-width:2;rx:16}.text{font:700 20px Arial,sans-serif;fill:#fff}.small{font:400 14px Arial,sans-serif;fill:#d1fae5}.line{stroke:#7dd3fc;stroke-width:3;marker-end:url(#a)}</style>
+  <rect width="1280" height="720" class="bg"/>
+  <text x="64" y="76" class="title">Financial Workflow</text>
+  <text x="64" y="110" class="sub">Utility billing, rent/sale contracts, payments, receipts, ledger, and collections governance.</text>
+  <rect x="80" y="220" width="185" height="110" class="box"/><text x="110" y="262" class="text">Charges</text><text x="110" y="290" class="small">Utilities, rent, sale</text>
+  <rect x="330" y="220" width="185" height="110" class="box"/><text x="360" y="262" class="text">Bill/Invoice</text><text x="360" y="290" class="small">Cycles, due dates</text>
+  <rect x="580" y="220" width="185" height="110" class="box"/><text x="610" y="262" class="text">Payment</text><text x="610" y="290" class="small">Attempts, idempotency</text>
+  <rect x="830" y="220" width="185" height="110" class="box"/><text x="860" y="262" class="text">Receipt</text><text x="860" y="290" class="small">Proof and history</text>
+  <rect x="1080" y="220" width="145" height="110" class="box"/><text x="1105" y="262" class="text">Ledger</text><text x="1105" y="290" class="small">Debit/credit</text>
+  <rect x="335" y="440" width="250" height="100" class="box"/><text x="365" y="482" class="text">Disputes + Adjustments</text><text x="365" y="510" class="small">Controlled corrections and audit</text>
+  <rect x="700" y="440" width="250" height="100" class="box"/><text x="730" y="482" class="text">Collections</text><text x="730" y="510" class="small">Cases, notices, payment plans</text>
+  <path d="M265 275 H330" class="line"/><path d="M515 275 H580" class="line"/><path d="M765 275 H830" class="line"/><path d="M1015 275 H1080" class="line"/><path d="M675 330 C625 390 535 420 490 440" class="line"/><path d="M1150 330 C1050 390 900 420 825 440" class="line"/>
+</svg>

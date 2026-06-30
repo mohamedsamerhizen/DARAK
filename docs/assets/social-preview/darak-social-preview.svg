@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">DARAK social preview</title>
+  <desc id="desc">GitHub social preview for DARAK backend.</desc>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f172a"/><stop offset="1" stop-color="#164e63"/></linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#g)"/>
+  <rect x="58" y="58" width="1164" height="524" fill="#0b1120" stroke="#38bdf8" stroke-width="3" rx="28"/>
+  <text x="110" y="175" font-family="Arial, sans-serif" font-size="88" font-weight="800" fill="#f8fafc">DARAK</text>
+  <text x="116" y="228" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#bae6fd">Residential Compound Management Backend</text>
+  <text x="116" y="292" font-family="Arial, sans-serif" font-size="26" fill="#dbeafe">ASP.NET Core Web API - SQL Server - EF Core - JWT - Docker - xUnit</text>
+  <rect x="116" y="345" width="290" height="48" fill="#172554" stroke="#60a5fa" rx="14"/>
+  <text x="140" y="377" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#eff6ff">Backend-only baseline</text>
+  <rect x="430" y="345" width="350" height="48" fill="#052e2b" stroke="#2dd4bf" rx="14"/>
+  <text x="454" y="377" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#ccfbf1">Production-style patterns</text>
+  <rect x="805" y="345" width="265" height="48" fill="#2f1b0b" stroke="#f59e0b" rx="14"/>
+  <text x="829" y="377" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#fef3c7">Commercial demo</text>
+  <text x="116" y="465" font-family="Arial, sans-serif" font-size="22" fill="#cbd5e1">Auth, tenant scoping, billing, payments, access control, maintenance, procurement, reporting, audit, notifications, CI.</text>
+  <text x="116" y="515" font-family="Arial, sans-serif" font-size="18" fill="#94a3b8">Professional ASP.NET Core backend for portfolio and commercial-demo presentation. Not a live production SaaS.</text>
+</svg>

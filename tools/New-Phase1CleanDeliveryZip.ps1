@@ -1,5 +1,5 @@
-param(
-    [string]$DestinationZip = "C:\Users\lenovo\Desktop\DARAK_PHASE1_FINAL_HARDENING_CLEAN_DELIVERY.zip"
+﻿param(
+    [string]$DestinationZip = "<repo-root>_PHASE1_FINAL_HARDENING_CLEAN_DELIVERY.zip"
 )
 
 Set-StrictMode -Version Latest
@@ -46,3 +46,4 @@ if (-not (Test-Path $DestinationZip)) {
 
 Write-Host "DONE: Phase 1 clean delivery ZIP created:" -ForegroundColor Green
 Write-Host $DestinationZip -ForegroundColor Yellow
+

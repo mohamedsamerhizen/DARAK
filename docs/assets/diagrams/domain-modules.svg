@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">DARAK domain modules</title>
+  <desc id="desc">Domain module map for DARAK backend.</desc>
+  <style>
+    .bg{fill:#0b1120}.title{font:700 40px Arial,sans-serif;fill:#f8fafc}.sub{font:400 18px Arial,sans-serif;fill:#cbd5e1}
+    .card{fill:#111827;stroke:#334155;stroke-width:2;rx:16}.head{font:700 20px Arial,sans-serif;fill:#f8fafc}.txt{font:400 14px Arial,sans-serif;fill:#cbd5e1}
+    .accent1{stroke:#38bdf8}.accent2{stroke:#22c55e}.accent3{stroke:#f59e0b}.accent4{stroke:#a78bfa}
+  </style>
+  <rect width="1280" height="720" class="bg"/>
+  <text x="64" y="76" class="title">DARAK Domain Modules</text>
+  <text x="64" y="110" class="sub">A backend that models compound operations end to end, not a shallow CRUD sample.</text>
+  <g>
+    <rect x="70" y="160" width="250" height="135" class="card accent1"/><text x="95" y="202" class="head">Identity + Scope</text><text x="95" y="235" class="txt">JWT, refresh tokens, roles</text><text x="95" y="258" class="txt">Compound assignments</text>
+    <rect x="365" y="160" width="250" height="135" class="card accent2"/><text x="390" y="202" class="head">Residents</text><text x="390" y="235" class="txt">Profiles, family, contacts</text><text x="390" y="258" class="txt">Occupancy and lifecycle</text>
+    <rect x="660" y="160" width="250" height="135" class="card accent3"/><text x="685" y="202" class="head">Finance</text><text x="685" y="235" class="txt">Bills, payments, receipts</text><text x="685" y="258" class="txt">Ledger, rent, sales</text>
+    <rect x="955" y="160" width="250" height="135" class="card accent4"/><text x="980" y="202" class="head">Access Control</text><text x="980" y="235" class="txt">Visitors, guards, contractors</text><text x="980" y="258" class="txt">Hashed access codes</text>
+    <rect x="70" y="350" width="250" height="135" class="card accent2"/><text x="95" y="392" class="head">Operations</text><text x="95" y="425" class="txt">Maintenance, SLA, assets</text><text x="95" y="448" class="txt">Preventive maintenance</text>
+    <rect x="365" y="350" width="250" height="135" class="card accent3"/><text x="390" y="392" class="head">Procurement</text><text x="390" y="425" class="txt">Staff, vendors, stock</text><text x="390" y="448" class="txt">Inventory and purchase orders</text>
+    <rect x="660" y="350" width="250" height="135" class="card accent4"/><text x="685" y="392" class="head">Governance</text><text x="685" y="425" class="txt">Documents, approvals</text><text x="685" y="448" class="txt">Audit and reporting</text>
+    <rect x="955" y="350" width="250" height="135" class="card accent1"/><text x="980" y="392" class="head">Communications</text><text x="980" y="425" class="txt">Announcements, outages</text><text x="980" y="448" class="txt">Preferences and outbox</text>
+  </g>
+  <rect x="260" y="570" width="760" height="64" fill="#172554" stroke="#60a5fa" rx="14"/>
+  <text x="305" y="610" class="sub">Cross-cutting: tenant isolation, validation, audit trails, EF Core migrations, Docker, CI, and automated tests.</text>
+</svg>

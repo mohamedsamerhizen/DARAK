@@ -1,19 +1,31 @@
 # DARAK Screenshot Capture Guide
 
-DARAK is backend-only. This repository does not include a frontend or mobile client, so no product UI screenshots are committed or fabricated.
+DARAK is backend-only. This repository does not include an admin, resident, guard, or mobile frontend, so product UI screenshots must not be mocked or fabricated.
+
+## Current Capture Status
+
+A real local Swagger capture was attempted during the GitHub presentation pass. The API started, but Swagger JSON generation failed because two DTO types share the same schema name:
+
+```text
+DARAK.Api.DTOs.Support.SupportDashboardResponse
+DARAK.Api.DTOs.Communication.SupportDashboardResponse
+```
+
+No Swagger screenshot from that failed page is committed. After the schema ID collision is fixed, capture real screenshots from the running API and save only reviewed images under `docs/assets/screenshots/`.
 
 ## What Can Be Captured Honestly
 
-- Swagger/OpenAPI screen in Development after the API starts.
-- GitHub Actions workflow run after pushing the repository.
-- Terminal output for restore, build, test, and EF commands.
+- Swagger/OpenAPI screen in Development after the API starts and the OpenAPI definition loads.
+- Specific Swagger sections such as auth, residents, finance, visitors/guards, maintenance, documents, reports, notifications, and health/readiness endpoints.
+- Terminal output for restore, build, test, EF database update, and pending-model-change checks.
 - SQL Server object explorer or query output during local verification.
-- Mermaid diagrams from `docs/Architecture-Diagrams.md` rendered by GitHub.
+- GitHub Actions workflow output after pushing the repository.
+- GitHub-rendered architecture diagrams from `docs/assets/diagrams/`.
 
-## Local Capture Steps
+## Local API Capture Steps
 
-1. Configure local environment variables or `.env` from `.env.example`.
-2. Start SQL Server if database screenshots are needed:
+1. Configure local values from `.env.example` or environment variables. Do not use real production secrets for screenshots.
+2. Start SQL Server:
 
 ```powershell
 docker compose up -d sqlserver
@@ -27,18 +39,59 @@ dotnet ef database update `
   --startup-project .\DARAK.Api\DARAK.Api.csproj
 ```
 
-4. Start the API:
+4. Start the API in Development:
 
 ```powershell
+$env:ASPNETCORE_ENVIRONMENT = "Development"
 dotnet run --project .\DARAK.Api\DARAK.Api.csproj
 ```
 
-5. In Development, open the Swagger URL printed by ASP.NET Core and capture only the actual running page.
+5. Open the Swagger URL printed by ASP.NET Core.
+6. Confirm the OpenAPI definition loads successfully before capturing.
+7. Save reviewed screenshots under `docs/assets/screenshots/` with descriptive names, for example:
 
-## Rules
+```text
+swagger-overview.png
+swagger-auth-endpoints.png
+swagger-finance-endpoints.png
+swagger-maintenance-endpoints.png
+swagger-visitor-guard-endpoints.png
+```
 
-- Do not create mock UI screenshots for this backend repository.
-- Do not include screenshots with secrets, bearer tokens, connection strings, or real personal data.
-- Do not commit local generated screenshots unless they are reviewed and intentionally added.
-- Prefer terminal evidence in `docs/Verification-Evidence.md` for release claims.
+## Terminal Evidence Capture
 
+Capture or copy terminal evidence for:
+
+```powershell
+dotnet restore .\DARAK.sln
+dotnet build .\DARAK.sln --configuration Release --no-restore
+dotnet test .\DARAK.sln --configuration Release --no-build
+```
+
+When SQL Server is available, also capture:
+
+```powershell
+dotnet ef database update `
+  --project .\DARAK.Api\DARAK.Api.csproj `
+  --startup-project .\DARAK.Api\DARAK.Api.csproj
+
+dotnet ef migrations has-pending-model-changes `
+  --project .\DARAK.Api\DARAK.Api.csproj `
+  --startup-project .\DARAK.Api\DARAK.Api.csproj
+```
+
+Record command output in `docs/Verification-Evidence.md` for release claims.
+
+## Redaction Rules
+
+- Do not show bearer tokens, refresh tokens, cookies, passwords, connection strings, API keys, real emails, real phone numbers, or real resident data.
+- Use local demo data only.
+- Crop or redact terminal paths only when needed; do not alter pass/fail results.
+- Do not commit screenshots generated from a failed Swagger page.
+- Do not create placeholder images to make the README look complete.
+
+## Related Assets
+
+- Social preview: `docs/assets/social-preview/darak-social-preview.svg`
+- Diagrams: `docs/assets/diagrams/`
+- Screenshot folder policy: `docs/assets/screenshots/README.md`

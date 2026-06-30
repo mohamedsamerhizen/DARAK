@@ -1,18 +1,83 @@
-# DARAK Backend
+# DARAK — Residential Compound Management Backend
 
-![.NET](https://img.shields.io/badge/.NET-10-512BD4)
+DARAK is a backend-only ASP.NET Core platform for residential compound operations: residents, units, billing, payments, visitors, guards, maintenance, procurement, documents, audit, reports, and notification workflows in one API-first codebase.
+
+![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)
 ![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-Web%20API-512BD4)
 ![EF Core](https://img.shields.io/badge/EF%20Core-SQL%20Server-blue)
-![Scope](https://img.shields.io/badge/Scope-Backend--Only-orange)
-![Status](https://img.shields.io/badge/Status-GitHub--Ready-green)
+![SQL Server](https://img.shields.io/badge/SQL%20Server-EF%20Migrations-CC2927)
+![xUnit](https://img.shields.io/badge/xUnit-677%2B%20tests-2EA44F)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
+![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)
+![Backend Only](https://img.shields.io/badge/Scope-Backend%20Only-orange)
 
-DARAK is a backend-only ASP.NET Core Web API for residential compound and property-management operations. It models authentication, compound scoping, residents, occupancy, billing, payments, rent, property sales, visitor access, guards, maintenance, staff, vendors, procurement, inventory, documents, approvals, audit, reports, announcements, outages, and notification outbox workflows.
+![DARAK social preview](docs/assets/social-preview/darak-social-preview.svg)
 
-This repository does not include a frontend/mobile app, real payment provider integration, real SMS/email provider setup, production hosting, or production operations ownership.
+DARAK is intended as a serious backend portfolio and commercial-demo baseline. It is not presented as a complete live SaaS product: this repository does not include frontend/mobile clients, real payment settlement, real SMS/email provider setup, production hosting, or production operations ownership.
 
-## Verification
+## Why DARAK Is Not a CRUD Toy Project
 
-Use `docs/Verification-Evidence.md` as the source of truth for the exact source tree being published.
+- It models a broad residential-compound domain instead of a single table workflow.
+- It separates SuperAdmin, CompoundAdmin, Accountant, Guard, MaintenanceStaff, Staff, and Resident responsibilities.
+- It uses compound scoping as a core design constraint for multi-compound access boundaries.
+- It includes financial workflow foundations: utility bills, bill lines, payments, attempts, receipts, rent contracts, property sale installments, disputes, collections, and ledger entries.
+- It includes operational workflows: visitor passes, guard logs, contractor permits, maintenance requests, work orders, vendors, staff, procurement, inventory, purchase orders, announcements, outages, approvals, documents, audit, reports, and notification outbox processing.
+- It treats verification as part of the product: Release restore/build/test gates, SQL Server migration checks, optional SQL integration tests, CI, documentation, and 677+ xUnit tests.
+
+## System Modules
+
+| Area | What DARAK Covers |
+|---|---|
+| Identity and access | JWT login, refresh-token rotation, role boundaries, public registration control, first-SuperAdmin bootstrap |
+| Compound structure | Compounds, buildings, floors, units, parking spots, compound assignment scope |
+| Residents and occupancy | Resident profiles, family members, emergency contacts, occupancy lifecycle, move-out blockers |
+| Finance | Bills, bill lines, payments, payment attempts, receipts, rent, sale installments, ledger entries, disputes, collections |
+| Visitor and guard operations | Visitor passes, hashed access credentials, guard logs, contractor permits, contractor check-in evidence |
+| Maintenance and assets | Maintenance requests, assets, work orders, preventive maintenance, SLA tracking |
+| Staff, vendors, procurement | Staff/vendor assignment, inventory, stock movement, purchase orders, receipt idempotency |
+| Communications | Announcements, utility outages, resident preferences, in-app notifications, notification outbox retry/backoff |
+| Governance | Documents, document access logs, approvals, audit logs, saved reports, export jobs |
+| Release hygiene | Docker Compose, SQL Server migrations, tests, CI, evidence docs, cleanup/package scripts |
+
+## Architecture Overview
+
+![DARAK architecture overview](docs/assets/diagrams/architecture-overview.svg)
+
+Source diagram files are kept in [docs/assets/diagrams](docs/assets/diagrams), with Mermaid equivalents documented in [docs/Architecture-Diagrams.md](docs/Architecture-Diagrams.md).
+
+## Security And Governance
+
+![DARAK security flow](docs/assets/diagrams/security-flow.svg)
+
+- JWT settings, issuer/audience, token lifetimes, and secrets are configuration-driven.
+- Production startup validation rejects placeholder secrets and unsafe registration auto-confirm behavior.
+- First-SuperAdmin bootstrap is disabled by default, guarded by explicit configuration, and refuses weak or placeholder credentials.
+- Demo seed data is opt-in, environment-gated, idempotent, and refuses weak local demo passwords when user seeding is enabled.
+- Visitor and contractor access values are stored as hashes and masked in normal responses.
+- Report export completion stores sanitized filenames under the controlled export root and rejects traversal or absolute paths.
+- Swagger is intended for Development only.
+
+## Financial Workflows
+
+![DARAK financial flow](docs/assets/diagrams/financial-flow.svg)
+
+DARAK models financial workflow foundations for compound operations: utility billing, payments, receipt creation, ledger entries, rent contracts, sale installments, disputes, collections, and move-out clearance. These are backend workflow foundations, not a live payment-gateway integration.
+
+## Operations Workflows
+
+![DARAK operations flow](docs/assets/diagrams/operations-flow.svg)
+
+Maintenance, staff, vendors, inventory, procurement, visitors, guards, contractor access, announcements, outages, documents, approvals, and reports are treated as connected operational workflows rather than isolated CRUD endpoints.
+
+## Demo Seed Data
+
+The optional demo seed creates a broad local dataset for portfolio review: compounds, users, residents, occupancies, finance records, visitor/guard records, maintenance and procurement data, announcements, outages, notifications, documents, reports, and audit entries.
+
+The seed is disabled by default and guarded by environment checks. See [docs/Demo-Seed-Data.md](docs/Demo-Seed-Data.md).
+
+## Verification Snapshot
+
+Use [docs/Verification-Evidence.md](docs/Verification-Evidence.md) as the source of truth for recorded evidence. The current presentation pass is documentation/assets only; it does not require a migration.
 
 Minimum local gate:
 
@@ -22,7 +87,7 @@ dotnet build .\DARAK.sln --configuration Release --no-restore
 dotnet test .\DARAK.sln --configuration Release --no-build
 ```
 
-When SQL Server is available:
+SQL Server migration gate:
 
 ```powershell
 dotnet ef database update `
@@ -34,49 +99,9 @@ dotnet ef migrations has-pending-model-changes `
   --startup-project .\DARAK.Api\DARAK.Api.csproj
 ```
 
-The test suite also includes optional SQL Server integration tests. Set `DARAK_SQLSERVER_TEST_CONNECTION` to run them against a temporary SQL database.
+Optional SQL Server integration tests run when `DARAK_SQLSERVER_TEST_CONNECTION` or `ConnectionStrings__DefaultConnection` points to a reachable SQL Server instance.
 
-## Tech Stack
-
-- .NET 10
-- ASP.NET Core Web API
-- Entity Framework Core and SQL Server migrations
-- ASP.NET Core Identity
-- JWT authentication and refresh tokens
-- Serilog
-- Swagger/OpenAPI in Development
-- xUnit and FluentAssertions
-- Docker Compose
-- GitHub Actions
-
-## Repository Structure
-
-```text
-DARAK/
-|-- DARAK.Api/                  # ASP.NET Core Web API
-|-- DARAK.Tests/                # Unit, service, boundary, readiness, and optional SQL tests
-|-- docs/                       # Verification, security, testing, diagrams, and handoff docs
-|-- tools/                      # Cleanup, validation, and packaging scripts
-|-- .github/workflows/          # GitHub Actions CI
-|-- docker-compose.yml          # Local SQL/API compose setup
-|-- docker-compose.production.yml
-|-- .env.example                # Safe local template
-|-- .env.production.example     # Safe production template
-`-- DARAK.sln
-```
-
-## Main Capabilities
-
-- Identity: login, JWTs, refresh-token rotation, role boundaries, public registration control, first-SuperAdmin bootstrap.
-- Structure: compounds, buildings, floors, units, parking, and compound assignment scope.
-- Residents: profiles, family members, emergency contacts, active occupancies, lifecycle workflows.
-- Finance: utility bills, bill lines, payments, attempts, receipts, ledger entries, rent contracts, sale installments, disputes, collections.
-- Access: visitor passes, guard logs, contractor permits, hashed access credentials.
-- Operations: maintenance requests, assets, work orders, SLA tracking, staff, vendors, procurement, inventory, purchase orders.
-- Communications: announcements, utility outages, resident notification preferences, in-app notifications, notification outbox retry/backoff.
-- Governance: documents, document access logs, approvals, audit logs, saved reports, export jobs.
-
-## Local Setup
+## Run Locally
 
 1. Install the .NET 10 SDK and Docker Desktop or SQL Server.
 2. Copy the safe environment template:
@@ -109,23 +134,48 @@ dotnet test .\DARAK.sln --configuration Release --no-build
 dotnet run --project .\DARAK.Api\DARAK.Api.csproj
 ```
 
-Swagger is intended for Development only.
+## Docker And SQL Server
 
-## Configuration Guardrails
+`docker-compose.yml` provides a local SQL Server/API-oriented setup. Keep local secrets in `.env` and use `.env.example` only as a safe template. Production-style deployment still needs real secret management, backups, monitoring, incident response, provider credentials, and release-specific SQL evidence.
 
-`BootstrapAdmin` is disabled by default. It requires explicit local credentials, refuses weak or placeholder values, and skips when a SuperAdmin already exists.
+## API Exploration And Swagger
 
-`DemoSeed` is disabled by default. It can seed a broad local dataset for portfolio review, but it runs only in Development, Demo, or Testing unless explicitly overridden and requires a strong local demo password when user seeding is enabled.
+Swagger/OpenAPI is available in Development when the API starts successfully. No Swagger screenshots are committed in this presentation pass because a real local capture attempt exposed a Swagger schema-generation error:
 
-`Notifications` are outbox-driven. Optional resident communications respect preferences; critical/urgent operational notices bypass opt-outs.
+```text
+Can't use schemaId "$SupportDashboardResponse" for DARAK.Api.DTOs.Support.SupportDashboardResponse;
+same schemaId already used for DARAK.Api.DTOs.Communication.SupportDashboardResponse
+```
 
-Report export completion stores sanitized filenames under the controlled report export root and rejects traversal or absolute paths.
+That is intentionally reported instead of faking screenshots. After the duplicate DTO schema-name issue is resolved, follow [docs/Screenshot-Capture-Guide.md](docs/Screenshot-Capture-Guide.md) and save real reviewed captures under [docs/assets/screenshots](docs/assets/screenshots).
 
-## CI
+## Screenshots And Demo Assets
 
-GitHub Actions runs Release restore, build, and test. A separate SQL Server integration job starts a SQL Server container and runs the SQL-specific tests.
+- Social preview source: [docs/assets/social-preview/darak-social-preview.svg](docs/assets/social-preview/darak-social-preview.svg)
+- Architecture diagrams: [docs/assets/diagrams](docs/assets/diagrams)
+- Screenshot capture guide: [docs/Screenshot-Capture-Guide.md](docs/Screenshot-Capture-Guide.md)
+- Screenshot folder policy: [docs/assets/screenshots/README.md](docs/assets/screenshots/README.md)
 
-## Key Docs
+No placeholder or fake product screenshots are included.
+
+## Repository Structure
+
+```text
+DARAK/
+|-- DARAK.Api/                  # ASP.NET Core Web API
+|-- DARAK.Tests/                # Unit, service, boundary, readiness, and optional SQL tests
+|-- docs/                       # Verification, security, testing, diagrams, and handoff docs
+|-- docs/assets/                # GitHub presentation diagrams and social preview assets
+|-- tools/                      # Cleanup, validation, release, and packaging scripts
+|-- .github/workflows/          # GitHub Actions CI
+|-- docker-compose.yml          # Local SQL/API compose setup
+|-- docker-compose.production.yml
+|-- .env.example                # Safe local template
+|-- .env.production.example     # Safe production template
+`-- DARAK.sln
+```
+
+## Docs Map
 
 - [Verification Evidence](docs/Verification-Evidence.md)
 - [Testing Strategy](docs/Testing-Strategy.md)
@@ -133,8 +183,54 @@ GitHub Actions runs Release restore, build, and test. A separate SQL Server inte
 - [Known Limitations](docs/Known-Limitations.md)
 - [Demo Seed Data](docs/Demo-Seed-Data.md)
 - [Architecture Diagrams](docs/Architecture-Diagrams.md)
+- [Environment Variables Reference](docs/Environment-Variables-Reference.md)
 - [Screenshot Capture Guide](docs/Screenshot-Capture-Guide.md)
+- [GitHub Profile Setup](docs/GitHub-Profile-Setup.md)
+- [Interview Talking Points](docs/Interview-Talking-Points.md)
 - [Deployment Runbook](docs/Deployment-Runbook.md)
+
+## Known Limitations
+
+- Backend only: no admin/resident/guard frontend and no mobile app are included.
+- Real payment-provider settlement is not included.
+- Real SMS/email provider credentials and production delivery operations are not included.
+- Production hosting, backups, monitoring, incident response, and SLA operations are not included.
+- Swagger screenshot capture currently requires resolving the duplicate `SupportDashboardResponse` schema ID collision described above.
+- Production-style claims require release-specific SQL Server migration and integration evidence.
+
+See [docs/Known-Limitations.md](docs/Known-Limitations.md) for the full honesty ledger.
+
+## Interview Talking Points
+
+Good framing:
+
+```text
+DARAK is a large ASP.NET Core backend portfolio project for residential compound operations, with authentication, authorization boundaries, compound scoping, financial workflow foundations, operations workflows, document/audit/reporting workflows, tests, and release hygiene.
+```
+
+Avoid claiming it is a complete production SaaS until frontend clients, real provider integrations, production operations, and release-specific SQL evidence are completed and recorded.
+
+## GitHub Metadata Recommendation
+
+Suggested repository About description:
+
+```text
+Backend-only ASP.NET Core residential compound management API with identity, tenant scoping, finance, visitors, maintenance, documents, notifications, tests, Docker, and CI.
+```
+
+Suggested topics:
+
+```text
+aspnet-core dotnet ef-core sql-server web-api backend property-management residential-compound xunit docker jwt swagger portfolio
+```
+
+Suggested pinned caption:
+
+```text
+Residential compound management backend: auth, compound scoping, finance, visitor/guard operations, maintenance, documents, notifications, tests, Docker, and CI.
+```
+
+More setup notes are in [docs/GitHub-Profile-Setup.md](docs/GitHub-Profile-Setup.md).
 
 ## GitHub Hygiene
 
@@ -145,16 +241,6 @@ Before publishing or packaging:
 ```
 
 Generated files such as `bin/`, `obj/`, logs, `TestResults/`, coverage output, uploads, exports, backup folders, `.env`, and ZIP files are ignored and should not be committed.
-
-## Public Positioning
-
-Good wording:
-
-```text
-DARAK is a large ASP.NET Core backend portfolio project for residential compound operations, with authentication, authorization boundaries, compound scoping, financial workflow foundations, operations workflows, document/audit/reporting workflows, tests, and release hygiene.
-```
-
-Avoid claiming it is a complete production SaaS until frontend clients, real provider integrations, production operations, and release-specific SQL evidence are completed and recorded.
 
 ## Historical Markers
 

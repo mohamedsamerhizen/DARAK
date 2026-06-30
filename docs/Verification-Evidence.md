@@ -1,4 +1,4 @@
-# DARAK Verification Evidence
+﻿# DARAK Verification Evidence
 
 This file records verification results for the exact source tree being published or presented.
 
@@ -6,10 +6,22 @@ Status: **Recorded**
 
 ---
 
+## GitHub Presentation Asset Note
+
+- Presentation pass date: `2026-06-30`
+- Scope: README, documentation, architecture diagrams, screenshot guide, and GitHub metadata guidance.
+- Backend behavior changed: no.
+- Migration required: none.
+- Real visual assets added under `docs/assets/diagrams/` and `docs/assets/social-preview/`.
+- Swagger screenshot status: not committed. A real local capture attempt reached Swagger UI, but OpenAPI JSON generation failed because `DARAK.Api.DTOs.Support.SupportDashboardResponse` and `DARAK.Api.DTOs.Communication.SupportDashboardResponse` collide on the same Swagger schema ID.
+- Screenshot policy: capture real reviewed screenshots only after the running API successfully serves the OpenAPI definition. See `docs/Screenshot-Capture-Guide.md`.
+
+---
+
 ## Final GitHub-Ready Backend Evidence
 
 - Project: DARAK Backend
-- Source folder: `C:\Users\lenovo\Desktop\DARAK`
+- Source folder: `<repo-root>`
 - Target package: `DARAK-GITHUB-READY-FINAL.zip`
 - Operator: Codex
 - Date/time: `2026-06-30 17:51:57 +03:00`
@@ -39,8 +51,8 @@ dotnet build .\DARAK.sln --configuration Release --no-restore
 Result:
 
 ```text
-DARAK.Api -> C:\Users\lenovo\Desktop\DARAK\DARAK.Api\bin\Release\net10.0\DARAK.Api.dll
-DARAK.Tests -> C:\Users\lenovo\Desktop\DARAK\DARAK.Tests\bin\Release\net10.0\DARAK.Tests.dll
+DARAK.Api -> <repo-root>\DARAK.Api\bin\Release\net10.0\DARAK.Api.dll
+DARAK.Tests -> <repo-root>\DARAK.Tests\bin\Release\net10.0\DARAK.Tests.dll
 
 Build succeeded.
 0 Warning(s)
@@ -119,7 +131,7 @@ A post-fix live SQL integration rerun was requested but blocked by the approval 
 ## Phase 06-08 Remediation Evidence
 
 - Project: DARAK Backend
-- Source folder: `C:\Users\lenovo\Desktop\DARAK`
+- Source folder: `<repo-root>`
 - Source ZIP/package: `DARAK-REMEDIATION-PHASES-06-07-08.zip`
 - Operator: Codex
 - Date: `2026-06-30`
@@ -149,8 +161,8 @@ dotnet build .\DARAK.sln --configuration Release --no-restore
 Result:
 
 ```text
-DARAK.Api -> C:\Users\lenovo\Desktop\DARAK\DARAK.Api\bin\Release\net10.0\DARAK.Api.dll
-DARAK.Tests -> C:\Users\lenovo\Desktop\DARAK\DARAK.Tests\bin\Release\net10.0\DARAK.Tests.dll
+DARAK.Api -> <repo-root>\DARAK.Api\bin\Release\net10.0\DARAK.Api.dll
+DARAK.Tests -> <repo-root>\DARAK.Tests\bin\Release\net10.0\DARAK.Tests.dll
 
 Build succeeded.
 0 Warning(s)
@@ -219,7 +231,7 @@ Exit code: 0
 Package evidence:
 
 ```text
-Created C:\Users\lenovo\Desktop\DARAK\DARAK-REMEDIATION-PHASES-06-07-08.zip
+Created <repo-root>\DARAK-REMEDIATION-PHASES-06-07-08.zip
 ZIP entry count: 943
 Forbidden entry count: 0
 Excluded: .git, .agents, .codex, bin, obj, .vs, .idea, TestResults, coverage, logs, backup folders, root files/, secret .env files, nested ZIPs, TRX files, and .log files.
@@ -230,7 +242,7 @@ Excluded: .git, .agents, .codex, bin, obj, .vs, .idea, TestResults, coverage, lo
 ## Phase 03-05 Remediation Evidence
 
 - Project: DARAK Backend
-- Source folder: `C:\Users\lenovo\Desktop\DARAK`
+- Source folder: `<repo-root>`
 - Source ZIP/package: `DARAK-REMEDIATION-PHASES-03-04-05.zip`
 - Operator: Codex
 - Date: `2026-06-30`
@@ -259,8 +271,8 @@ dotnet build .\DARAK.sln --configuration Release --no-restore
 Result:
 
 ```text
-DARAK.Api -> C:\Users\lenovo\Desktop\DARAK\DARAK.Api\bin\Release\net10.0\DARAK.Api.dll
-DARAK.Tests -> C:\Users\lenovo\Desktop\DARAK\DARAK.Tests\bin\Release\net10.0\DARAK.Tests.dll
+DARAK.Api -> <repo-root>\DARAK.Api\bin\Release\net10.0\DARAK.Api.dll
+DARAK.Tests -> <repo-root>\DARAK.Tests\bin\Release\net10.0\DARAK.Tests.dll
 
 Build succeeded.
 0 Warning(s)
@@ -307,7 +319,7 @@ Test-NetConnection localhost:1433: TcpTestSucceeded False.
 Package evidence:
 
 ```text
-Created C:\Users\lenovo\Desktop\DARAK\DARAK-REMEDIATION-PHASES-03-04-05.zip
+Created <repo-root>\DARAK-REMEDIATION-PHASES-03-04-05.zip
 ZIP entry count: 932
 Forbidden entry count: 0
 Excluded: .git, .agents, .codex, bin, obj, .vs, .idea, TestResults, coverage, logs, backup folders, root files/, secret .env files, nested ZIPs, and .log files.
@@ -318,7 +330,7 @@ Excluded: .git, .agents, .codex, bin, obj, .vs, .idea, TestResults, coverage, lo
 ## Baseline Identity
 
 - Project: DARAK Backend
-- Source folder: `C:\Users\lenovo\Desktop\DARAK`
+- Source folder: `<repo-root>`
 - Source ZIP/package: `DARAK-REMEDIATION-PHASES-00-01-02.zip`
 - Operator: Codex
 - Machine: `DESKTOP-O6COQK7`
@@ -358,8 +370,8 @@ dotnet build .\DARAK.sln --configuration Release --no-restore
 Result:
 
 ```text
-DARAK.Api -> C:\Users\lenovo\Desktop\DARAK\DARAK.Api\bin\Release\net10.0\DARAK.Api.dll
-DARAK.Tests -> C:\Users\lenovo\Desktop\DARAK\DARAK.Tests\bin\Release\net10.0\DARAK.Tests.dll
+DARAK.Api -> <repo-root>\DARAK.Api\bin\Release\net10.0\DARAK.Api.dll
+DARAK.Tests -> <repo-root>\DARAK.Tests\bin\Release\net10.0\DARAK.Tests.dll
 
 Build succeeded.
 
@@ -381,7 +393,7 @@ dotnet test .\DARAK.sln --configuration Release --no-build
 Result:
 
 ```text
-Test run for C:\Users\lenovo\Desktop\DARAK\DARAK.Tests\bin\Release\net10.0\DARAK.Tests.dll (.NETCoreApp,Version=v10.0)
+Test run for <repo-root>\DARAK.Tests\bin\Release\net10.0\DARAK.Tests.dll (.NETCoreApp,Version=v10.0)
 VSTest version 18.0.1 (x64)
 
 Starting test execution, please wait...
@@ -470,3 +482,4 @@ Final notes:
 Restore, Release build, and Release test commands passed on 2026-06-30.
 SQL Server/Docker verification was unavailable in this environment.
 ```
+

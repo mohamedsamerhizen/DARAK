@@ -71,6 +71,13 @@ This reference lists the runtime configuration values that should be provided th
 |---|---:|---|
 | `DARAK_SQLSERVER_TEST_CONNECTION` | Optional | Enables optional SQL Server integration tests. Tests create and delete a unique temporary database. |
 
+## Local Swagger And Screenshot Capture
+
+| Variable | Required | Notes |
+|---|---:|---|
+| `ASPNETCORE_ENVIRONMENT=Development` | Local Swagger only | Enables Development-only Swagger behavior for local API exploration. Do not use `Development` in production. |
+| `ConnectionStrings__DefaultConnection` | Local SQL | Use a local SQL Server connection string. Redact it from screenshots and logs before publishing evidence. |
+
 ## Production Rules
 
 - Do not set production to `Development`.
@@ -81,3 +88,9 @@ This reference lists the runtime configuration values that should be provided th
 - Do not use `.env.example` values as real deployment values.
 - Do not store real secrets in `appsettings.json`.
 - Keep `.env` outside Git and outside commercial source packages.
+
+## Related Docs
+
+- `docs/Security-Notes.md`
+- `docs/Screenshot-Capture-Guide.md`
+- `docs/Demo-Seed-Data.md`

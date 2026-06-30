@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">DARAK operations workflow</title>
+  <desc id="desc">Operations workflow diagram for maintenance, access control, procurement, and documents.</desc>
+  <style>.bg{fill:#10151f}.title{font:700 40px Arial,sans-serif;fill:#f8fafc}.sub{font:400 18px Arial,sans-serif;fill:#cbd5e1}.lane{fill:#111827;stroke:#475569;stroke-width:2;rx:18}.head{font:700 22px Arial,sans-serif;fill:#fff}.txt{font:400 15px Arial,sans-serif;fill:#dbeafe}.tag{fill:#172554;stroke:#60a5fa;rx:10}</style>
+  <rect width="1280" height="720" class="bg"/>
+  <text x="64" y="76" class="title">Operations Workflow</text>
+  <text x="64" y="110" class="sub">Operational depth across access, maintenance, procurement, documents, and audit.</text>
+  <rect x="80" y="165" width="520" height="150" class="lane"/><text x="115" y="207" class="head">Access Control</text><text x="115" y="238" class="txt">Visitor passes, guard logs, contractor permits, hashed access credentials.</text><rect x="115" y="262" width="135" height="34" class="tag"/><text x="132" y="285" class="txt">Guard workflows</text>
+  <rect x="680" y="165" width="520" height="150" class="lane"/><text x="715" y="207" class="head">Maintenance</text><text x="715" y="238" class="txt">Requests, work orders, assets, SLA status, preventive plans.</text><rect x="715" y="262" width="145" height="34" class="tag"/><text x="732" y="285" class="txt">SLA tracking</text>
+  <rect x="80" y="385" width="520" height="150" class="lane"/><text x="115" y="427" class="head">Procurement + Inventory</text><text x="115" y="458" class="txt">Staff, vendors, stock items, issue/receive movements, purchase orders.</text><rect x="115" y="482" width="155" height="34" class="tag"/><text x="132" y="505" class="txt">Stock integrity</text>
+  <rect x="680" y="385" width="520" height="150" class="lane"/><text x="715" y="427" class="head">Documents + Reporting</text><text x="715" y="458" class="txt">Document access logs, approvals, audit entries, saved reports, export jobs.</text><rect x="715" y="482" width="150" height="34" class="tag"/><text x="732" y="505" class="txt">Export safety</text>
+  <rect x="310" y="605" width="660" height="58" fill="#052e2b" stroke="#2dd4bf" rx="14"/><text x="355" y="641" class="txt">Everything is compound scoped and protected by service-level validation and tests.</text>
+</svg>

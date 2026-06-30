@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">DARAK backend architecture overview</title>
+  <desc id="desc">Architecture diagram for the DARAK ASP.NET Core backend.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="1" stop-color="#1f2937"/>
+    </linearGradient>
+    <style>
+      .title{font:700 42px Arial,sans-serif;fill:#f9fafb}
+      .subtitle{font:400 20px Arial,sans-serif;fill:#cbd5e1}
+      .box{fill:#0f172a;stroke:#38bdf8;stroke-width:2;rx:14}
+      .box2{fill:#172554;stroke:#93c5fd;stroke-width:2;rx:14}
+      .box3{fill:#052e2b;stroke:#2dd4bf;stroke-width:2;rx:14}
+      .text{font:700 19px Arial,sans-serif;fill:#f8fafc}
+      .small{font:400 14px Arial,sans-serif;fill:#dbeafe}
+      .line{stroke:#94a3b8;stroke-width:3;fill:none;marker-end:url(#arrow)}
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <text x="64" y="78" class="title">DARAK Backend Architecture</text>
+  <text x="64" y="112" class="subtitle">ASP.NET Core Web API for residential compound operations</text>
+
+  <rect x="70" y="185" width="230" height="100" class="box2"/>
+  <text x="100" y="225" class="text">API Clients</text>
+  <text x="100" y="252" class="small">Swagger, admin UI,</text>
+  <text x="100" y="272" class="small">resident app, guard app</text>
+
+  <rect x="395" y="165" width="280" height="140" class="box"/>
+  <text x="430" y="214" class="text">DARAK.Api</text>
+  <text x="430" y="244" class="small">Controllers, middleware,</text>
+  <text x="430" y="264" class="small">validation, rate limits</text>
+
+  <rect x="785" y="165" width="250" height="140" class="box3"/>
+  <text x="820" y="214" class="text">Domain Services</text>
+  <text x="820" y="244" class="small">Finance, access, ops,</text>
+  <text x="820" y="264" class="small">documents, reports</text>
+
+  <rect x="395" y="400" width="250" height="105" class="box2"/>
+  <text x="425" y="442" class="text">Identity + JWT</text>
+  <text x="425" y="470" class="small">Roles, refresh tokens,</text>
+  <text x="425" y="490" class="small">bootstrap guardrails</text>
+
+  <rect x="715" y="400" width="250" height="105" class="box2"/>
+  <text x="745" y="442" class="text">Compound Scope</text>
+  <text x="745" y="470" class="small">Tenant isolation and</text>
+  <text x="745" y="490" class="small">resident privacy rules</text>
+
+  <rect x="1040" y="400" width="170" height="105" class="box"/>
+  <text x="1070" y="442" class="text">SQL Server</text>
+  <text x="1070" y="470" class="small">EF Core model,</text>
+  <text x="1070" y="490" class="small">migrations, indexes</text>
+
+  <path d="M300 235 H395" class="line"/>
+  <path d="M675 235 H785" class="line"/>
+  <path d="M910 305 V400" class="line"/>
+  <path d="M520 305 V400" class="line"/>
+  <path d="M965 452 H1040" class="line"/>
+  <path d="M645 452 H715" class="line"/>
+
+  <rect x="70" y="585" width="1140" height="70" fill="#111827" stroke="#475569" stroke-width="1" rx="12"/>
+  <text x="105" y="626" class="small">Production-style backend baseline: auth, scoped authorization, billing, payments, access control, operations, audit, reporting, notifications, Docker, CI, and xUnit tests.</text>
+</svg>
