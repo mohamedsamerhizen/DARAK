@@ -39,15 +39,47 @@ DARAK is intended as a serious backend portfolio and commercial-demo baseline. I
 | Governance | Documents, document access logs, approvals, audit logs, saved reports, export jobs |
 | Release hygiene | Docker Compose, SQL Server migrations, tests, CI, evidence docs, cleanup/package scripts |
 
-## Architecture Overview
+## Visual Overview
 
-![DARAK architecture overview](docs/assets/diagrams/architecture-overview.svg)
+### System Architecture
+
+<img src="docs/assets/diagrams/architecture-overview.svg" alt="DARAK Architecture Overview">
+
+Shows the backend-first architecture: API clients call the ASP.NET Core Web API, domain services enforce business rules, and EF Core persists the compound model in SQL Server.
+
+### Domain Modules
+
+<img src="docs/assets/diagrams/domain-modules.svg" alt="DARAK Domain Modules">
+
+Shows the breadth of the domain beyond CRUD: residents, finance, access control, operations, communications, governance, and release hygiene are modeled as connected backend modules.
+
+### Security Flow
+
+<img src="docs/assets/diagrams/security-flow.svg" alt="DARAK Security Flow">
+
+Shows how authentication, JWT validation, role checks, compound scoping, guarded bootstrap, and audit/report safety fit together.
+
+### Financial Workflow
+
+<img src="docs/assets/diagrams/financial-flow.svg" alt="DARAK Financial Workflow">
+
+Shows the financial workflow foundations for bills, payment attempts, receipts, ledger entries, rent, sale installments, disputes, collections, and move-out clearance.
+
+### Operations Workflow
+
+<img src="docs/assets/diagrams/operations-flow.svg" alt="DARAK Operations Workflow">
+
+Shows the operational side of the system: visitor/guard flows, contractor access, maintenance, vendors, inventory, purchase orders, announcements, outages, documents, approvals, and reports.
+
+### Testing And CI
+
+<img src="docs/assets/diagrams/testing-and-ci-flow.svg" alt="DARAK Testing And CI Flow">
+
+Shows how restore, build, tests, SQL Server migration checks, optional integration tests, CI, and release evidence support the backend presentation.
 
 Source diagram files are kept in [docs/assets/diagrams](docs/assets/diagrams), with Mermaid equivalents documented in [docs/Architecture-Diagrams.md](docs/Architecture-Diagrams.md).
 
 ## Security And Governance
-
-![DARAK security flow](docs/assets/diagrams/security-flow.svg)
 
 - JWT settings, issuer/audience, token lifetimes, and secrets are configuration-driven.
 - Production startup validation rejects placeholder secrets and unsafe registration auto-confirm behavior.
@@ -56,18 +88,6 @@ Source diagram files are kept in [docs/assets/diagrams](docs/assets/diagrams), w
 - Visitor and contractor access values are stored as hashes and masked in normal responses.
 - Report export completion stores sanitized filenames under the controlled export root and rejects traversal or absolute paths.
 - Swagger is intended for Development only.
-
-## Financial Workflows
-
-![DARAK financial flow](docs/assets/diagrams/financial-flow.svg)
-
-DARAK models financial workflow foundations for compound operations: utility billing, payments, receipt creation, ledger entries, rent contracts, sale installments, disputes, collections, and move-out clearance. These are backend workflow foundations, not a live payment-gateway integration.
-
-## Operations Workflows
-
-![DARAK operations flow](docs/assets/diagrams/operations-flow.svg)
-
-Maintenance, staff, vendors, inventory, procurement, visitors, guards, contractor access, announcements, outages, documents, approvals, and reports are treated as connected operational workflows rather than isolated CRUD endpoints.
 
 ## Demo Seed Data
 
@@ -144,17 +164,39 @@ Swagger/OpenAPI is available in Development when the API starts successfully. Sw
 
 The screenshots below are real captures from the running local Swagger UI after verifying `/swagger/v1/swagger.json` returned HTTP 200.
 
-## Screenshots And Demo Assets
+## Swagger / API Screenshots
 
-![Swagger overview](docs/assets/screenshots/swagger-overview.png)
+### Swagger Overview
 
-![Auth endpoints](docs/assets/screenshots/auth-endpoints.png)
+<img src="docs/assets/screenshots/swagger-overview.png" alt="DARAK Swagger Overview">
 
-![Admin modules](docs/assets/screenshots/admin-modules.png)
+Proves the OpenAPI document loads successfully and exposes the backend as a developer-explorable API surface.
 
-![Resident endpoints](docs/assets/screenshots/resident-endpoints.png)
+### Authentication Endpoints
 
-![Guard access endpoints](docs/assets/screenshots/guard-access-endpoints.png)
+<img src="docs/assets/screenshots/auth-endpoints.png" alt="DARAK Auth Endpoints">
+
+Proves the authentication surface is visible in Swagger, including registration, login, refresh, logout, and current-user endpoints.
+
+### Admin Modules
+
+<img src="docs/assets/screenshots/admin-modules.png" alt="DARAK Admin Modules">
+
+Proves the admin API includes operational dashboard endpoints for compound management and business review workflows.
+
+### Resident Endpoints
+
+<img src="docs/assets/screenshots/resident-endpoints.png" alt="DARAK Resident Endpoints">
+
+Proves resident-facing backend workflows are documented, including account, bills, disputes, installments, rent, payments, and meter-reading surfaces.
+
+### Guard Access Endpoints
+
+<img src="docs/assets/screenshots/guard-access-endpoints.png" alt="DARAK Guard Access Endpoints">
+
+Proves guard and contractor access workflows are present in the API, including visitor verification, check-in/check-out, denial, logs, and contractor access.
+
+## Demo Assets
 
 - Social preview source: [docs/assets/social-preview/darak-social-preview.svg](docs/assets/social-preview/darak-social-preview.svg)
 - Architecture diagrams: [docs/assets/diagrams](docs/assets/diagrams)
