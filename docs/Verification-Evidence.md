@@ -13,8 +13,26 @@ Status: **Recorded**
 - Backend behavior changed: no.
 - Migration required: none.
 - Real visual assets added under `docs/assets/diagrams/` and `docs/assets/social-preview/`.
-- Swagger screenshot status: not committed. A real local capture attempt reached Swagger UI, but OpenAPI JSON generation failed because `DARAK.Api.DTOs.Support.SupportDashboardResponse` and `DARAK.Api.DTOs.Communication.SupportDashboardResponse` collide on the same Swagger schema ID.
+- Swagger screenshot status: initial capture not committed because OpenAPI JSON generation failed on duplicate `SupportDashboardResponse` schema IDs.
 - Screenshot policy: capture real reviewed screenshots only after the running API successfully serves the OpenAPI definition. See `docs/Screenshot-Capture-Guide.md`.
+
+---
+
+## Swagger Schema ID And Screenshot Evidence
+
+- Date: `2026-06-30`
+- Scope: Swagger schema ID configuration, README screenshot links, screenshot guide, and real Swagger screenshot assets.
+- Backend business logic changed: no.
+- Migration required: none.
+- Build: `dotnet build .\DARAK.sln --configuration Release` passed with 0 warnings and 0 errors.
+- Tests: `dotnet test .\DARAK.sln --configuration Release --no-build` passed with 677 passed, 0 failed, 0 skipped.
+- OpenAPI check: `GET /swagger/v1/swagger.json` returned HTTP 200.
+- Screenshots captured:
+  - `docs/assets/screenshots/swagger-overview.png`
+  - `docs/assets/screenshots/auth-endpoints.png`
+  - `docs/assets/screenshots/admin-modules.png`
+  - `docs/assets/screenshots/resident-endpoints.png`
+  - `docs/assets/screenshots/guard-access-endpoints.png`
 
 ---
 
@@ -193,7 +211,7 @@ Test-NetConnection localhost:1433: TcpTestSucceeded True.
 EF database update command:
 
 ```powershell
-$env:ConnectionStrings__DefaultConnection = "Server=localhost,1433;Database=DARAKDb;User Id=sa;Password=Darak_dev_2026!;TrustServerCertificate=True;Encrypt=True"
+$env:ConnectionStrings__DefaultConnection = "<local SQL Server connection string>"
 
 dotnet ef database update `
   --project .\DARAK.Api\DARAK.Api.csproj `

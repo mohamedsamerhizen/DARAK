@@ -140,16 +140,21 @@ dotnet run --project .\DARAK.Api\DARAK.Api.csproj
 
 ## API Exploration And Swagger
 
-Swagger/OpenAPI is available in Development when the API starts successfully. No Swagger screenshots are committed in this presentation pass because a real local capture attempt exposed a Swagger schema-generation error:
+Swagger/OpenAPI is available in Development when the API starts successfully. Swagger schema IDs use fully qualified DTO type names so same-named response models in different namespaces can coexist in the OpenAPI document.
 
-```text
-Can't use schemaId "$SupportDashboardResponse" for DARAK.Api.DTOs.Support.SupportDashboardResponse;
-same schemaId already used for DARAK.Api.DTOs.Communication.SupportDashboardResponse
-```
-
-That is intentionally reported instead of faking screenshots. After the duplicate DTO schema-name issue is resolved, follow [docs/Screenshot-Capture-Guide.md](docs/Screenshot-Capture-Guide.md) and save real reviewed captures under [docs/assets/screenshots](docs/assets/screenshots).
+The screenshots below are real captures from the running local Swagger UI after verifying `/swagger/v1/swagger.json` returned HTTP 200.
 
 ## Screenshots And Demo Assets
+
+![Swagger overview](docs/assets/screenshots/swagger-overview.png)
+
+![Auth endpoints](docs/assets/screenshots/auth-endpoints.png)
+
+![Admin modules](docs/assets/screenshots/admin-modules.png)
+
+![Resident endpoints](docs/assets/screenshots/resident-endpoints.png)
+
+![Guard access endpoints](docs/assets/screenshots/guard-access-endpoints.png)
 
 - Social preview source: [docs/assets/social-preview/darak-social-preview.svg](docs/assets/social-preview/darak-social-preview.svg)
 - Architecture diagrams: [docs/assets/diagrams](docs/assets/diagrams)
@@ -195,7 +200,6 @@ DARAK/
 - Real payment-provider settlement is not included.
 - Real SMS/email provider credentials and production delivery operations are not included.
 - Production hosting, backups, monitoring, incident response, and SLA operations are not included.
-- Swagger screenshot capture currently requires resolving the duplicate `SupportDashboardResponse` schema ID collision described above.
 - Production-style claims require release-specific SQL Server migration and integration evidence.
 
 See [docs/Known-Limitations.md](docs/Known-Limitations.md) for the full honesty ledger.

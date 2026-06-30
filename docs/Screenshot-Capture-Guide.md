@@ -4,14 +4,20 @@ DARAK is backend-only. This repository does not include an admin, resident, guar
 
 ## Current Capture Status
 
-A real local Swagger capture was attempted during the GitHub presentation pass. The API started, but Swagger JSON generation failed because two DTO types share the same schema name:
+A real local Swagger capture was completed after configuring Swagger schema IDs to use fully qualified DTO type names. The OpenAPI JSON was verified at:
 
 ```text
-DARAK.Api.DTOs.Support.SupportDashboardResponse
-DARAK.Api.DTOs.Communication.SupportDashboardResponse
+GET /swagger/v1/swagger.json
+HTTP 200
 ```
 
-No Swagger screenshot from that failed page is committed. After the schema ID collision is fixed, capture real screenshots from the running API and save only reviewed images under `docs/assets/screenshots/`.
+Reviewed screenshots are committed under `docs/assets/screenshots/`:
+
+- `swagger-overview.png`
+- `auth-endpoints.png`
+- `admin-modules.png`
+- `resident-endpoints.png`
+- `guard-access-endpoints.png`
 
 ## What Can Be Captured Honestly
 

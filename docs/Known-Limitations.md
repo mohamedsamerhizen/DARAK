@@ -52,9 +52,9 @@ The backend source alone does not include:
 
 The backend has substantial domain coverage, but it is not a complete production SaaS without frontend clients, real provider integrations, production operations, SQL Server evidence, security hardening, and deployment ownership.
 
-### 10. Swagger screenshot capture currently needs a schema-name fix
+### 10. Swagger screenshots are developer evidence, not product UI
 
-A real local Swagger screenshot attempt reached Swagger UI, but OpenAPI JSON generation failed because two DTOs share the `SupportDashboardResponse` schema name. No fake screenshot is committed. Resolve the duplicate schema ID issue before adding Swagger screenshots to `docs/assets/screenshots/`.
+Swagger screenshots prove that the backend OpenAPI surface loads and can be explored locally. They do not replace frontend, mobile, or production operations evidence.
 
 ---
 
