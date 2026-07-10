@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="860" viewBox="0 0 1400 860" role="img" aria-labelledby="security-title security-desc">
+  <title id="security-title">DARAK security overview</title>
+  <desc id="security-desc">Security infographic covering JWT, refresh tokens, RBAC, isolation, scoping, hashes, audit trail, and validation.</desc>
+  
+  <defs>
+    <linearGradient id="security-bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="0.48" stop-color="#0b1628"/>
+      <stop offset="1" stop-color="#0e2037"/>
+    </linearGradient>
+    <linearGradient id="security-panel" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#172a43"/>
+      <stop offset="1" stop-color="#0f1d31"/>
+    </linearGradient>
+    <linearGradient id="security-accent" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#2dd4ff"/>
+      <stop offset="1" stop-color="#f8bf4c"/>
+    </linearGradient>
+    <linearGradient id="security-accent-soft" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2dd4ff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#f8bf4c" stop-opacity="0.08"/>
+    </linearGradient>
+    <radialGradient id="security-glow-a" cx="26%" cy="18%" r="52%">
+      <stop offset="0" stop-color="#2dd4ff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#2dd4ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="security-glow-b" cx="82%" cy="72%" r="48%">
+      <stop offset="0" stop-color="#f8bf4c" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#f8bf4c" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="security-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000814" flood-opacity="0.42"/>
+    </filter>
+    <filter id="security-soft-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#000814" flood-opacity="0.32"/>
+    </filter>
+    <pattern id="security-grid" width="46" height="46" patternUnits="userSpaceOnUse">
+      <path d="M46 0H0V46" fill="none" stroke="#2b4564" stroke-opacity="0.22" stroke-width="1"/>
+    </pattern>
+    <style>
+      .label { font-family: Inter, Segoe UI, Arial, sans-serif; letter-spacing: 0; }
+      .mono { font-family: Cascadia Mono, Consolas, monospace; letter-spacing: 0; }
+    </style>
+  </defs>
+  <rect width="1400" height="860" rx="34" fill="url(#security-bg)"/>
+  <rect width="1400" height="860" rx="34" fill="url(#security-grid)" opacity="0.68"/>
+  <rect width="1400" height="860" rx="34" fill="url(#security-glow-a)"/>
+  <rect width="1400" height="860" rx="34" fill="url(#security-glow-b)"/>
+  <path d="M0 768C230 710 375 818 580 772C845 712 1004 834 1400 744" fill="none" stroke="url(#security-accent)" stroke-width="2" stroke-opacity="0.38"/>
+  <g class="label">
+  <text x="80" y="96" fill="#f7fbff" font-size="46" font-weight="800" text-anchor="start" >Security Overview</text>
+  <text x="82" y="136" fill="#9fb4ca" font-size="21" font-weight="500" text-anchor="start" >Identity, authorization, scoping, and evidence-oriented controls.</text>
+  <rect x="1042" y="70" width="278" height="48" rx="24" fill="#0f2338" stroke="url(#security-accent)" stroke-opacity="0.58"/>
+  <text x="1181" y="101" fill="#f7fbff" font-size="17" font-weight="800" text-anchor="middle" class="mono">DARAK BACKEND</text>
+  <g filter="url(#security-shadow)">
+    <path d="M700 230l170 68v126c0 132-75 226-170 274c-95-48-170-142-170-274V298l170-68z" fill="#0e2238" stroke="url(#security-accent)" stroke-width="3"/>
+    <path d="M700 291l100 40v85c0 82-42 145-100 181c-58-36-100-99-100-181v-85l100-40z" fill="url(#security-accent-soft)" stroke="#3b5d7d"/>
+    <text x="700" y="408" fill="#f7fbff" font-size="34" font-weight="900" text-anchor="middle" >SECURITY</text>
+    <text x="700" y="444" fill="#9fb4ca" font-size="24" font-weight="800" text-anchor="middle" class="mono">CORE</text>
+  </g>
+  <g opacity="1" filter="url(#security-soft-shadow)">
+    <rect x="102" y="198" width="340" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="102" y="198" width="340" height="5" rx="22" fill="#2dd4ff"/>
+  </g>
+  <g>
+    <circle cx="150" cy="244" r="18" fill="#2dd4ff" fill-opacity="0.12" stroke="#2dd4ff" stroke-opacity="0.7"/>
+    <path d="M142 245l5 5 11-13" fill="none" stroke="#2dd4ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="190" y="241" fill="#f7fbff" font-size="23" font-weight="780" text-anchor="start" ><tspan x="190" dy="0" text-anchor="start">JWT Authentication</tspan></text><path d="M442 244C527 244 528 430 530 430" fill="none" stroke="#2dd4ff" stroke-width="2" stroke-opacity="0.28"/>
+  <g opacity="1" filter="url(#security-soft-shadow)">
+    <rect x="946" y="198" width="340" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="946" y="198" width="340" height="5" rx="22" fill="#5b8cff"/>
+  </g>
+  <g>
+    <circle cx="994" cy="244" r="18" fill="#5b8cff" fill-opacity="0.12" stroke="#5b8cff" stroke-opacity="0.7"/>
+    <path d="M986 245l5 5 11-13" fill="none" stroke="#5b8cff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="1034" y="241" fill="#f7fbff" font-size="23" font-weight="780" text-anchor="start" ><tspan x="1034" dy="0" text-anchor="start">Refresh Tokens</tspan></text><path d="M946 244C861 244 860 430 870 430" fill="none" stroke="#5b8cff" stroke-width="2" stroke-opacity="0.28"/>
+  <g opacity="1" filter="url(#security-soft-shadow)">
+    <rect x="102" y="330" width="340" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="102" y="330" width="340" height="5" rx="22" fill="#45e6a8"/>
+  </g>
+  <g>
+    <circle cx="150" cy="376" r="18" fill="#45e6a8" fill-opacity="0.12" stroke="#45e6a8" stroke-opacity="0.7"/>
+    <path d="M142 377l5 5 11-13" fill="none" stroke="#45e6a8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="190" y="373" fill="#f7fbff" font-size="23" font-weight="780" text-anchor="start" ><tspan x="190" dy="0" text-anchor="start">Role-Based Authorization</tspan></text><path d="M442 376C527 376 528 430 530 430" fill="none" stroke="#45e6a8" stroke-width="2" stroke-opacity="0.28"/>
+  <g opacity="1" filter="url(#security-soft-shadow)">
+    <rect x="946" y="330" width="340" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="946" y="330" width="340" height="5" rx="22" fill="#f8bf4c"/>
+  </g>
+  <g>
+    <circle cx="994" cy="376" r="18" fill="#f8bf4c" fill-opacity="0.12" stroke="#f8bf4c" stroke-opacity="0.7"/>
+    <path d="M986 377l5 5 11-13" fill="none" stroke="#f8bf4c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="1034" y="373" fill="#f7fbff" font-size="23" font-weight="780" text-anchor="start" ><tspan x="1034" dy="0" text-anchor="start">Tenant Isolation</tspan></text><path d="M946 376C861 376 860 430 870 430" fill="none" stroke="#f8bf4c" stroke-width="2" stroke-opacity="0.28"/>
+  <g opacity="1" filter="url(#security-soft-shadow)">
+    <rect x="102" y="462" width="340" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="102" y="462" width="340" height="5" rx="22" fill="#a78bfa"/>
+  </g>
+  <g>
+    <circle cx="150" cy="508" r="18" fill="#a78bfa" fill-opacity="0.12" stroke="#a78bfa" stroke-opacity="0.7"/>
+    <path d="M142 509l5 5 11-13" fill="none" stroke="#a78bfa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="190" y="505" fill="#f7fbff" font-size="23" font-weight="780" text-anchor="start" ><tspan x="190" dy="0" text-anchor="start">Compound Scoping</tspan></text><path d="M442 508C527 508 528 430 530 430" fill="none" stroke="#a78bfa" stroke-width="2" stroke-opacity="0.28"/>
+  <g opacity="1" filter="url(#security-soft-shadow)">
+    <rect x="946" y="462" width="340" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="946" y="462" width="340" height="5" rx="22" fill="#ff6b7f"/>
+  </g>
+  <g>
+    <circle cx="994" cy="508" r="18" fill="#ff6b7f" fill-opacity="0.12" stroke="#ff6b7f" stroke-opacity="0.7"/>
+    <path d="M986 509l5 5 11-13" fill="none" stroke="#ff6b7f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="1034" y="505" fill="#f7fbff" font-size="23" font-weight="780" text-anchor="start" ><tspan x="1034" dy="0" text-anchor="start">Hashed Access Codes</tspan></text><path d="M946 508C861 508 860 430 870 430" fill="none" stroke="#ff6b7f" stroke-width="2" stroke-opacity="0.28"/>
+  <g opacity="1" filter="url(#security-soft-shadow)">
+    <rect x="102" y="594" width="340" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="102" y="594" width="340" height="5" rx="22" fill="#2dd4ff"/>
+  </g>
+  <g>
+    <circle cx="150" cy="640" r="18" fill="#2dd4ff" fill-opacity="0.12" stroke="#2dd4ff" stroke-opacity="0.7"/>
+    <path d="M142 641l5 5 11-13" fill="none" stroke="#2dd4ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="190" y="637" fill="#f7fbff" font-size="23" font-weight="780" text-anchor="start" ><tspan x="190" dy="0" text-anchor="start">Audit Trail</tspan></text><path d="M442 640C527 640 528 430 530 430" fill="none" stroke="#2dd4ff" stroke-width="2" stroke-opacity="0.28"/>
+  <g opacity="1" filter="url(#security-soft-shadow)">
+    <rect x="946" y="594" width="340" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="946" y="594" width="340" height="5" rx="22" fill="#45e6a8"/>
+  </g>
+  <g>
+    <circle cx="994" cy="640" r="18" fill="#45e6a8" fill-opacity="0.12" stroke="#45e6a8" stroke-opacity="0.7"/>
+    <path d="M986 641l5 5 11-13" fill="none" stroke="#45e6a8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="1034" y="637" fill="#f7fbff" font-size="23" font-weight="780" text-anchor="start" ><tspan x="1034" dy="0" text-anchor="start">Validation</tspan></text><path d="M946 640C861 640 860 430 870 430" fill="none" stroke="#45e6a8" stroke-width="2" stroke-opacity="0.28"/></g>
+  </svg>

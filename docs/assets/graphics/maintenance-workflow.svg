@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="maint-title maint-desc">
+  <title id="maint-title">DARAK maintenance workflow</title>
+  <desc id="maint-desc">Maintenance Workflow flow infographic.</desc>
+  
+  <defs>
+    <linearGradient id="maint-bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="0.48" stop-color="#0b1628"/>
+      <stop offset="1" stop-color="#0e2037"/>
+    </linearGradient>
+    <linearGradient id="maint-panel" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#172a43"/>
+      <stop offset="1" stop-color="#0f1d31"/>
+    </linearGradient>
+    <linearGradient id="maint-accent" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#f8bf4c"/>
+      <stop offset="1" stop-color="#45e6a8"/>
+    </linearGradient>
+    <linearGradient id="maint-accent-soft" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f8bf4c" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#45e6a8" stop-opacity="0.08"/>
+    </linearGradient>
+    <radialGradient id="maint-glow-a" cx="26%" cy="18%" r="52%">
+      <stop offset="0" stop-color="#f8bf4c" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#f8bf4c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="maint-glow-b" cx="82%" cy="72%" r="48%">
+      <stop offset="0" stop-color="#45e6a8" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#45e6a8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="maint-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000814" flood-opacity="0.42"/>
+    </filter>
+    <filter id="maint-soft-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#000814" flood-opacity="0.32"/>
+    </filter>
+    <pattern id="maint-grid" width="46" height="46" patternUnits="userSpaceOnUse">
+      <path d="M46 0H0V46" fill="none" stroke="#2b4564" stroke-opacity="0.22" stroke-width="1"/>
+    </pattern>
+    <style>
+      .label { font-family: Inter, Segoe UI, Arial, sans-serif; letter-spacing: 0; }
+      .mono { font-family: Cascadia Mono, Consolas, monospace; letter-spacing: 0; }
+    </style>
+  </defs>
+  <rect width="1400" height="760" rx="34" fill="url(#maint-bg)"/>
+  <rect width="1400" height="760" rx="34" fill="url(#maint-grid)" opacity="0.68"/>
+  <rect width="1400" height="760" rx="34" fill="url(#maint-glow-a)"/>
+  <rect width="1400" height="760" rx="34" fill="url(#maint-glow-b)"/>
+  <path d="M0 668C230 610 375 718 580 672C845 612 1004 734 1400 644" fill="none" stroke="url(#maint-accent)" stroke-width="2" stroke-opacity="0.38"/>
+  <g class="label">
+  <text x="80" y="96" fill="#f7fbff" font-size="46" font-weight="800" text-anchor="start" >Maintenance Workflow</text>
+  <text x="82" y="136" fill="#9fb4ca" font-size="21" font-weight="500" text-anchor="start" >Resident requests become assigned work orders with SLA tracking and feedback.</text>
+  <rect x="1042" y="70" width="278" height="48" rx="24" fill="#0f2338" stroke="url(#maint-accent)" stroke-opacity="0.58"/>
+  <text x="1181" y="101" fill="#f7fbff" font-size="17" font-weight="800" text-anchor="middle" class="mono">DARAK BACKEND</text>
+  <g opacity="1" filter="url(#maint-soft-shadow)">
+    <rect x="92" y="326" width="184" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="92" y="326" width="184" height="5" rx="22" fill="#f8bf4c"/>
+  </g><circle cx="184" cy="374" r="27" fill="#f8bf4c" fill-opacity="0.14" stroke="#f8bf4c" stroke-opacity="0.72"/><text x="184" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">01</text><text x="184" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="184" dy="0" text-anchor="middle">Maintenance</tspan><tspan x="184" dy="24" text-anchor="middle">Request</tspan></text>
+  <line x1="282" y1="406" x2="288" y2="406" stroke="#f8bf4c" stroke-width="3" stroke-opacity="0.68"/>
+  <path d="M286 397L304 406L286 415" fill="none" stroke="#f8bf4c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#maint-soft-shadow)">
+    <rect x="310" y="326" width="184" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="310" y="326" width="184" height="5" rx="22" fill="#5b8cff"/>
+  </g><circle cx="402" cy="374" r="27" fill="#5b8cff" fill-opacity="0.14" stroke="#5b8cff" stroke-opacity="0.72"/><text x="402" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">02</text><text x="402" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="402" dy="0" text-anchor="middle">Work Order</tspan></text>
+  <line x1="500" y1="406" x2="506" y2="406" stroke="#5b8cff" stroke-width="3" stroke-opacity="0.68"/>
+  <path d="M504 397L522 406L504 415" fill="none" stroke="#5b8cff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#maint-soft-shadow)">
+    <rect x="528" y="326" width="184" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="528" y="326" width="184" height="5" rx="22" fill="#45e6a8"/>
+  </g><circle cx="620" cy="374" r="27" fill="#45e6a8" fill-opacity="0.14" stroke="#45e6a8" stroke-opacity="0.72"/><text x="620" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">03</text><text x="620" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="620" dy="0" text-anchor="middle">Assignment</tspan></text>
+  <line x1="718" y1="406" x2="724" y2="406" stroke="#45e6a8" stroke-width="3" stroke-opacity="0.68"/>
+  <path d="M722 397L740 406L722 415" fill="none" stroke="#45e6a8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#maint-soft-shadow)">
+    <rect x="746" y="326" width="184" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="746" y="326" width="184" height="5" rx="22" fill="#f8bf4c"/>
+  </g><circle cx="838" cy="374" r="27" fill="#f8bf4c" fill-opacity="0.14" stroke="#f8bf4c" stroke-opacity="0.72"/><text x="838" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">04</text><text x="838" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="838" dy="0" text-anchor="middle">SLA Tracking</tspan></text>
+  <line x1="936" y1="406" x2="942" y2="406" stroke="#f8bf4c" stroke-width="3" stroke-opacity="0.68"/>
+  <path d="M940 397L958 406L940 415" fill="none" stroke="#f8bf4c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#maint-soft-shadow)">
+    <rect x="964" y="326" width="184" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="964" y="326" width="184" height="5" rx="22" fill="#a78bfa"/>
+  </g><circle cx="1056" cy="374" r="27" fill="#a78bfa" fill-opacity="0.14" stroke="#a78bfa" stroke-opacity="0.72"/><text x="1056" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">05</text><text x="1056" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="1056" dy="0" text-anchor="middle">Completion</tspan></text>
+  <line x1="1154" y1="406" x2="1160" y2="406" stroke="#a78bfa" stroke-width="3" stroke-opacity="0.68"/>
+  <path d="M1158 397L1176 406L1158 415" fill="none" stroke="#a78bfa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#maint-soft-shadow)">
+    <rect x="1182" y="326" width="184" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="1182" y="326" width="184" height="5" rx="22" fill="#45e6a8"/>
+  </g><circle cx="1274" cy="374" r="27" fill="#45e6a8" fill-opacity="0.14" stroke="#45e6a8" stroke-opacity="0.72"/><text x="1274" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">06</text><text x="1274" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="1274" dy="0" text-anchor="middle">Resident</tspan><tspan x="1274" dy="24" text-anchor="middle">Rating</tspan></text>
+  
+  <g opacity="1" filter="url(#maint-soft-shadow)">
+    <rect x="170" y="566" width="1060" height="118" rx="28" fill="#0b1c30" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="170" y="566" width="1060" height="5" rx="28" fill="url(#maint-accent)"/>
+  </g>
+  <text x="216" y="626" fill="#f7fbff" font-size="25" font-weight="800" text-anchor="start" >Workflow guarantee</text>
+  <text x="512" y="610" fill="#9fb4ca" font-size="20" font-weight="500" text-anchor="start" ><tspan x="512" dy="0" text-anchor="start">Backend state, validation, persistence,</tspan><tspan x="512" dy="30" text-anchor="start">and reporting evidence at every transition.</tspan></text>
+  <path d="M250 730h900" stroke="url(#maint-accent)" stroke-width="3" stroke-linecap="round" stroke-opacity="0.56"/></g>
+  </svg>

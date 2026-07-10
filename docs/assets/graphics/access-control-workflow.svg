@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="access-title access-desc">
+  <title id="access-title">DARAK access control workflow</title>
+  <desc id="access-desc">Access Control Workflow flow infographic.</desc>
+  
+  <defs>
+    <linearGradient id="access-bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="0.48" stop-color="#0b1628"/>
+      <stop offset="1" stop-color="#0e2037"/>
+    </linearGradient>
+    <linearGradient id="access-panel" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#172a43"/>
+      <stop offset="1" stop-color="#0f1d31"/>
+    </linearGradient>
+    <linearGradient id="access-accent" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#2dd4ff"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="access-accent-soft" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2dd4ff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0.08"/>
+    </linearGradient>
+    <radialGradient id="access-glow-a" cx="26%" cy="18%" r="52%">
+      <stop offset="0" stop-color="#2dd4ff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#2dd4ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="access-glow-b" cx="82%" cy="72%" r="48%">
+      <stop offset="0" stop-color="#a78bfa" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="access-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000814" flood-opacity="0.42"/>
+    </filter>
+    <filter id="access-soft-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#000814" flood-opacity="0.32"/>
+    </filter>
+    <pattern id="access-grid" width="46" height="46" patternUnits="userSpaceOnUse">
+      <path d="M46 0H0V46" fill="none" stroke="#2b4564" stroke-opacity="0.22" stroke-width="1"/>
+    </pattern>
+    <style>
+      .label { font-family: Inter, Segoe UI, Arial, sans-serif; letter-spacing: 0; }
+      .mono { font-family: Cascadia Mono, Consolas, monospace; letter-spacing: 0; }
+    </style>
+  </defs>
+  <rect width="1400" height="760" rx="34" fill="url(#access-bg)"/>
+  <rect width="1400" height="760" rx="34" fill="url(#access-grid)" opacity="0.68"/>
+  <rect width="1400" height="760" rx="34" fill="url(#access-glow-a)"/>
+  <rect width="1400" height="760" rx="34" fill="url(#access-glow-b)"/>
+  <path d="M0 668C230 610 375 718 580 672C845 612 1004 734 1400 644" fill="none" stroke="url(#access-accent)" stroke-width="2" stroke-opacity="0.38"/>
+  <g class="label">
+  <text x="80" y="96" fill="#f7fbff" font-size="46" font-weight="800" text-anchor="start" >Access Control Workflow</text>
+  <text x="82" y="136" fill="#9fb4ca" font-size="21" font-weight="500" text-anchor="start" >Visitor access is approved, verified, checked in, checked out, and audited.</text>
+  <rect x="1042" y="70" width="278" height="48" rx="24" fill="#0f2338" stroke="url(#access-accent)" stroke-opacity="0.58"/>
+  <text x="1181" y="101" fill="#f7fbff" font-size="17" font-weight="800" text-anchor="middle" class="mono">DARAK BACKEND</text>
+  <g opacity="1" filter="url(#access-soft-shadow)">
+    <rect x="92" y="326" width="158" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="92" y="326" width="158" height="5" rx="22" fill="#2dd4ff"/>
+  </g><circle cx="171" cy="374" r="27" fill="#2dd4ff" fill-opacity="0.14" stroke="#2dd4ff" stroke-opacity="0.72"/><text x="171" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">01</text><text x="171" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="171" dy="0" text-anchor="middle">Visitor</tspan><tspan x="171" dy="24" text-anchor="middle">Request</tspan></text>
+  <line x1="256" y1="406" x2="252" y2="406" stroke="#2dd4ff" stroke-width="3" stroke-opacity="0.68"/>
+  <path d="M250 397L268 406L250 415" fill="none" stroke="#2dd4ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#access-soft-shadow)">
+    <rect x="274" y="326" width="158" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="274" y="326" width="158" height="5" rx="22" fill="#5b8cff"/>
+  </g><circle cx="353" cy="374" r="27" fill="#5b8cff" fill-opacity="0.14" stroke="#5b8cff" stroke-opacity="0.72"/><text x="353" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">02</text><text x="353" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="353" dy="0" text-anchor="middle">Approval</tspan></text>
+  <line x1="438" y1="406" x2="434" y2="406" stroke="#5b8cff" stroke-width="3" stroke-opacity="0.68"/>
+  <path d="M432 397L450 406L432 415" fill="none" stroke="#5b8cff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#access-soft-shadow)">
+    <rect x="456" y="326" width="158" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="456" y="326" width="158" height="5" rx="22" fill="#45e6a8"/>
+  </g><circle cx="535" cy="374" r="27" fill="#45e6a8" fill-opacity="0.14" stroke="#45e6a8" stroke-opacity="0.72"/><text x="535" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">03</text><text x="535" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="535" dy="0" text-anchor="middle">Access Code</tspan></text>
+  <line x1="620" y1="406" x2="616" y2="406" stroke="#45e6a8" stroke-width="3" stroke-opacity="0.68"/>
+  <path d="M614 397L632 406L614 415" fill="none" stroke="#45e6a8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#access-soft-shadow)">
+    <rect x="638" y="326" width="158" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="638" y="326" width="158" height="5" rx="22" fill="#f8bf4c"/>
+  </g><circle cx="717" cy="374" r="27" fill="#f8bf4c" fill-opacity="0.14" stroke="#f8bf4c" stroke-opacity="0.72"/><text x="717" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">04</text><text x="717" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="717" dy="0" text-anchor="middle">Guard</tspan><tspan x="717" dy="24" text-anchor="middle">Verification</tspan></text>
+  <line x1="802" y1="406" x2="798" y2="406" stroke="#f8bf4c" stroke-width="3" stroke-opacity="0.68"/>
+  <path d="M796 397L814 406L796 415" fill="none" stroke="#f8bf4c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#access-soft-shadow)">
+    <rect x="820" y="326" width="158" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="820" y="326" width="158" height="5" rx="22" fill="#a78bfa"/>
+  </g><circle cx="899" cy="374" r="27" fill="#a78bfa" fill-opacity="0.14" stroke="#a78bfa" stroke-opacity="0.72"/><text x="899" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">05</text><text x="899" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="899" dy="0" text-anchor="middle">Check-In</tspan></text>
+  <line x1="984" y1="406" x2="980" y2="406" stroke="#a78bfa" stroke-width="3" stroke-opacity="0.68"/>
+  <path d="M978 397L996 406L978 415" fill="none" stroke="#a78bfa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#access-soft-shadow)">
+    <rect x="1002" y="326" width="158" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="1002" y="326" width="158" height="5" rx="22" fill="#a78bfa"/>
+  </g><circle cx="1081" cy="374" r="27" fill="#a78bfa" fill-opacity="0.14" stroke="#a78bfa" stroke-opacity="0.72"/><text x="1081" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">06</text><text x="1081" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="1081" dy="0" text-anchor="middle">Check-Out</tspan></text>
+  <line x1="1166" y1="406" x2="1162" y2="406" stroke="#a78bfa" stroke-width="3" stroke-opacity="0.68"/>
+  <path d="M1160 397L1178 406L1160 415" fill="none" stroke="#a78bfa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#access-soft-shadow)">
+    <rect x="1184" y="326" width="158" height="160" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="1184" y="326" width="158" height="5" rx="22" fill="#2dd4ff"/>
+  </g><circle cx="1263" cy="374" r="27" fill="#2dd4ff" fill-opacity="0.14" stroke="#2dd4ff" stroke-opacity="0.72"/><text x="1263" y="384" fill="#f7fbff" font-size="21" font-weight="800" text-anchor="middle" class="mono">07</text><text x="1263" y="430" fill="#f7fbff" font-size="20" font-weight="760" text-anchor="middle" ><tspan x="1263" dy="0" text-anchor="middle">Audit Log</tspan></text>
+  
+  <g opacity="1" filter="url(#access-soft-shadow)">
+    <rect x="170" y="566" width="1060" height="118" rx="28" fill="#0b1c30" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="170" y="566" width="1060" height="5" rx="28" fill="url(#access-accent)"/>
+  </g>
+  <text x="216" y="626" fill="#f7fbff" font-size="25" font-weight="800" text-anchor="start" >Workflow guarantee</text>
+  <text x="512" y="610" fill="#9fb4ca" font-size="20" font-weight="500" text-anchor="start" ><tspan x="512" dy="0" text-anchor="start">Backend state, validation, persistence,</tspan><tspan x="512" dy="30" text-anchor="start">and reporting evidence at every transition.</tspan></text>
+  <path d="M250 730h900" stroke="url(#access-accent)" stroke-width="3" stroke-linecap="round" stroke-opacity="0.56"/></g>
+  </svg>

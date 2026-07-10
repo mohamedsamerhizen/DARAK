@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="860" viewBox="0 0 1400 860" role="img" aria-labelledby="arch-title arch-desc">
+  <title id="arch-title">DARAK system architecture overview</title>
+  <desc id="arch-desc">Clients flow through JWT authentication, controllers, business services, Entity Framework Core, and SQL Server.</desc>
+  
+  <defs>
+    <linearGradient id="arch-bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="0.48" stop-color="#0b1628"/>
+      <stop offset="1" stop-color="#0e2037"/>
+    </linearGradient>
+    <linearGradient id="arch-panel" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#172a43"/>
+      <stop offset="1" stop-color="#0f1d31"/>
+    </linearGradient>
+    <linearGradient id="arch-accent" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#2dd4ff"/>
+      <stop offset="1" stop-color="#45e6a8"/>
+    </linearGradient>
+    <linearGradient id="arch-accent-soft" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2dd4ff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#45e6a8" stop-opacity="0.08"/>
+    </linearGradient>
+    <radialGradient id="arch-glow-a" cx="26%" cy="18%" r="52%">
+      <stop offset="0" stop-color="#2dd4ff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#2dd4ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="arch-glow-b" cx="82%" cy="72%" r="48%">
+      <stop offset="0" stop-color="#45e6a8" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#45e6a8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="arch-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000814" flood-opacity="0.42"/>
+    </filter>
+    <filter id="arch-soft-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#000814" flood-opacity="0.32"/>
+    </filter>
+    <pattern id="arch-grid" width="46" height="46" patternUnits="userSpaceOnUse">
+      <path d="M46 0H0V46" fill="none" stroke="#2b4564" stroke-opacity="0.22" stroke-width="1"/>
+    </pattern>
+    <style>
+      .label { font-family: Inter, Segoe UI, Arial, sans-serif; letter-spacing: 0; }
+      .mono { font-family: Cascadia Mono, Consolas, monospace; letter-spacing: 0; }
+    </style>
+  </defs>
+  <rect width="1400" height="860" rx="34" fill="url(#arch-bg)"/>
+  <rect width="1400" height="860" rx="34" fill="url(#arch-grid)" opacity="0.68"/>
+  <rect width="1400" height="860" rx="34" fill="url(#arch-glow-a)"/>
+  <rect width="1400" height="860" rx="34" fill="url(#arch-glow-b)"/>
+  <path d="M0 768C230 710 375 818 580 772C845 712 1004 834 1400 744" fill="none" stroke="url(#arch-accent)" stroke-width="2" stroke-opacity="0.38"/>
+  <g class="label">
+  <text x="80" y="96" fill="#f7fbff" font-size="46" font-weight="800" text-anchor="start" >System Architecture</text>
+  <text x="82" y="136" fill="#9fb4ca" font-size="21" font-weight="500" text-anchor="start" >A layered ASP.NET Core backend built for scoped enterprise workflows.</text>
+  <rect x="1042" y="70" width="278" height="48" rx="24" fill="#0f2338" stroke="url(#arch-accent)" stroke-opacity="0.58"/>
+  <text x="1181" y="101" fill="#f7fbff" font-size="17" font-weight="800" text-anchor="middle" class="mono">DARAK BACKEND</text>
+  <g opacity="1" filter="url(#arch-soft-shadow)">
+    <rect x="310" y="178" width="780" height="78" rx="22" fill="url(#arch-panel)" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="310" y="178" width="780" height="5" rx="22" fill="#2dd4ff"/>
+  </g>
+  <g>
+    <circle cx="356" cy="217" r="18" fill="#2dd4ff" fill-opacity="0.12" stroke="#2dd4ff" stroke-opacity="0.7"/>
+    <path d="M348 218l5 5 11-13" fill="none" stroke="#2dd4ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="396" y="228" fill="#f7fbff" font-size="1" font-weight="600" text-anchor="start" ></text><text x="398" y="212" fill="#f7fbff" font-size="26" font-weight="800" text-anchor="start" >Clients</text><text x="398" y="238" fill="#9fb4ca" font-size="17" font-weight="500" text-anchor="start" >Swagger, API consumers, admin portals, resident apps</text>
+  <line x1="700" y1="258" x2="700" y2="268" stroke="#2dd4ff" stroke-width="3" stroke-opacity="0.72"/>
+  <path d="M691 266L700 282L709 266" fill="none" stroke="#2dd4ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#arch-soft-shadow)">
+    <rect x="310" y="282" width="780" height="78" rx="22" fill="url(#arch-panel)" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="310" y="282" width="780" height="5" rx="22" fill="#f8bf4c"/>
+  </g>
+  <g>
+    <circle cx="356" cy="321" r="18" fill="#f8bf4c" fill-opacity="0.12" stroke="#f8bf4c" stroke-opacity="0.7"/>
+    <path d="M348 322l5 5 11-13" fill="none" stroke="#f8bf4c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="396" y="228" fill="#f7fbff" font-size="1" font-weight="600" text-anchor="start" ></text><text x="398" y="316" fill="#f7fbff" font-size="26" font-weight="800" text-anchor="start" >JWT Authentication</text><text x="398" y="342" fill="#9fb4ca" font-size="17" font-weight="500" text-anchor="start" >Token validation, refresh workflows, identity boundaries</text>
+  <line x1="700" y1="362" x2="700" y2="372" stroke="#f8bf4c" stroke-width="3" stroke-opacity="0.72"/>
+  <path d="M691 370L700 386L709 370" fill="none" stroke="#f8bf4c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#arch-soft-shadow)">
+    <rect x="310" y="386" width="780" height="78" rx="22" fill="url(#arch-panel)" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="310" y="386" width="780" height="5" rx="22" fill="#5b8cff"/>
+  </g>
+  <g>
+    <circle cx="356" cy="425" r="18" fill="#5b8cff" fill-opacity="0.12" stroke="#5b8cff" stroke-opacity="0.7"/>
+    <path d="M348 426l5 5 11-13" fill="none" stroke="#5b8cff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="396" y="228" fill="#f7fbff" font-size="1" font-weight="600" text-anchor="start" ></text><text x="398" y="420" fill="#f7fbff" font-size="26" font-weight="800" text-anchor="start" >Controllers</text><text x="398" y="446" fill="#9fb4ca" font-size="17" font-weight="500" text-anchor="start" >HTTP endpoints, validation, request orchestration</text>
+  <line x1="700" y1="466" x2="700" y2="476" stroke="#5b8cff" stroke-width="3" stroke-opacity="0.72"/>
+  <path d="M691 474L700 490L709 474" fill="none" stroke="#5b8cff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#arch-soft-shadow)">
+    <rect x="310" y="490" width="780" height="78" rx="22" fill="url(#arch-panel)" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="310" y="490" width="780" height="5" rx="22" fill="#45e6a8"/>
+  </g>
+  <g>
+    <circle cx="356" cy="529" r="18" fill="#45e6a8" fill-opacity="0.12" stroke="#45e6a8" stroke-opacity="0.7"/>
+    <path d="M348 530l5 5 11-13" fill="none" stroke="#45e6a8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="396" y="228" fill="#f7fbff" font-size="1" font-weight="600" text-anchor="start" ></text><text x="398" y="524" fill="#f7fbff" font-size="26" font-weight="800" text-anchor="start" >Business Services</text><text x="398" y="550" fill="#9fb4ca" font-size="17" font-weight="500" text-anchor="start" >Domain rules, compound scoping, financial and operational flows</text>
+  <line x1="700" y1="570" x2="700" y2="580" stroke="#45e6a8" stroke-width="3" stroke-opacity="0.72"/>
+  <path d="M691 578L700 594L709 578" fill="none" stroke="#45e6a8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#arch-soft-shadow)">
+    <rect x="310" y="594" width="780" height="78" rx="22" fill="url(#arch-panel)" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="310" y="594" width="780" height="5" rx="22" fill="#a78bfa"/>
+  </g>
+  <g>
+    <circle cx="356" cy="633" r="18" fill="#a78bfa" fill-opacity="0.12" stroke="#a78bfa" stroke-opacity="0.7"/>
+    <path d="M348 634l5 5 11-13" fill="none" stroke="#a78bfa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="396" y="228" fill="#f7fbff" font-size="1" font-weight="600" text-anchor="start" ></text><text x="398" y="628" fill="#f7fbff" font-size="26" font-weight="800" text-anchor="start" >Entity Framework Core</text><text x="398" y="654" fill="#9fb4ca" font-size="17" font-weight="500" text-anchor="start" >Repositories through DbContext, migrations, query mapping</text>
+  <line x1="700" y1="674" x2="700" y2="684" stroke="#a78bfa" stroke-width="3" stroke-opacity="0.72"/>
+  <path d="M691 682L700 698L709 682" fill="none" stroke="#a78bfa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g opacity="1" filter="url(#arch-soft-shadow)">
+    <rect x="310" y="698" width="780" height="78" rx="22" fill="url(#arch-panel)" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="310" y="698" width="780" height="5" rx="22" fill="#ff6b7f"/>
+  </g>
+  <g>
+    <circle cx="356" cy="737" r="18" fill="#ff6b7f" fill-opacity="0.12" stroke="#ff6b7f" stroke-opacity="0.7"/>
+    <path d="M348 738l5 5 11-13" fill="none" stroke="#ff6b7f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="396" y="228" fill="#f7fbff" font-size="1" font-weight="600" text-anchor="start" ></text><text x="398" y="732" fill="#f7fbff" font-size="26" font-weight="800" text-anchor="start" >SQL Server</text><text x="398" y="758" fill="#9fb4ca" font-size="17" font-weight="500" text-anchor="start" >Relational persistence, constraints, ledger-grade storage</text>
+  
+  <g opacity="1" filter="url(#arch-soft-shadow)">
+    <rect x="82" y="250" width="176" height="316" rx="24" fill="#0d1d31" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="82" y="250" width="176" height="5" rx="24" fill="#2dd4ff"/>
+  </g>
+  <text x="124" y="302" fill="#f7fbff" font-size="22" font-weight="800" text-anchor="start" >Boundary</text>
+  <text x="124" y="348" fill="#9fb4ca" font-size="18" font-weight="600" text-anchor="start" ><tspan x="124" dy="0" text-anchor="start">Authentication</tspan><tspan x="124" dy="34" text-anchor="start">Authorization</tspan><tspan x="124" dy="34" text-anchor="start">Compound scope</tspan><tspan x="124" dy="34" text-anchor="start">Audit trail</tspan></text>
+  
+  <g opacity="1" filter="url(#arch-soft-shadow)">
+    <rect x="1142" y="250" width="176" height="316" rx="24" fill="#0d1d31" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="1142" y="250" width="176" height="5" rx="24" fill="#45e6a8"/>
+  </g>
+  <text x="1184" y="302" fill="#f7fbff" font-size="22" font-weight="800" text-anchor="start" >Quality</text>
+  <text x="1184" y="348" fill="#9fb4ca" font-size="18" font-weight="600" text-anchor="start" ><tspan x="1184" dy="0" text-anchor="start">677 tests</tspan><tspan x="1184" dy="34" text-anchor="start">Docker ready</tspan><tspan x="1184" dy="34" text-anchor="start">SQL verified</tspan><tspan x="1184" dy="34" text-anchor="start">CI workflow</tspan></text></g>
+  </svg>

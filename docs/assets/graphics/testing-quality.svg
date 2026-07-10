@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="800" viewBox="0 0 1400 800" role="img" aria-labelledby="quality-title quality-desc">
+  <title id="quality-title">DARAK testing and quality infographic</title>
+  <desc id="quality-desc">Quality infographic displaying 677 tests passed, build passed, Docker, GitHub Actions, SQL Server, and Swagger.</desc>
+  
+  <defs>
+    <linearGradient id="quality-bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="0.48" stop-color="#0b1628"/>
+      <stop offset="1" stop-color="#0e2037"/>
+    </linearGradient>
+    <linearGradient id="quality-panel" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#172a43"/>
+      <stop offset="1" stop-color="#0f1d31"/>
+    </linearGradient>
+    <linearGradient id="quality-accent" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#45e6a8"/>
+      <stop offset="1" stop-color="#2dd4ff"/>
+    </linearGradient>
+    <linearGradient id="quality-accent-soft" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#45e6a8" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#2dd4ff" stop-opacity="0.08"/>
+    </linearGradient>
+    <radialGradient id="quality-glow-a" cx="26%" cy="18%" r="52%">
+      <stop offset="0" stop-color="#45e6a8" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#45e6a8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="quality-glow-b" cx="82%" cy="72%" r="48%">
+      <stop offset="0" stop-color="#2dd4ff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#2dd4ff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="quality-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000814" flood-opacity="0.42"/>
+    </filter>
+    <filter id="quality-soft-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#000814" flood-opacity="0.32"/>
+    </filter>
+    <pattern id="quality-grid" width="46" height="46" patternUnits="userSpaceOnUse">
+      <path d="M46 0H0V46" fill="none" stroke="#2b4564" stroke-opacity="0.22" stroke-width="1"/>
+    </pattern>
+    <style>
+      .label { font-family: Inter, Segoe UI, Arial, sans-serif; letter-spacing: 0; }
+      .mono { font-family: Cascadia Mono, Consolas, monospace; letter-spacing: 0; }
+    </style>
+  </defs>
+  <rect width="1400" height="800" rx="34" fill="url(#quality-bg)"/>
+  <rect width="1400" height="800" rx="34" fill="url(#quality-grid)" opacity="0.68"/>
+  <rect width="1400" height="800" rx="34" fill="url(#quality-glow-a)"/>
+  <rect width="1400" height="800" rx="34" fill="url(#quality-glow-b)"/>
+  <path d="M0 708C230 650 375 758 580 712C845 652 1004 774 1400 684" fill="none" stroke="url(#quality-accent)" stroke-width="2" stroke-opacity="0.38"/>
+  <g class="label">
+  <text x="80" y="96" fill="#f7fbff" font-size="46" font-weight="800" text-anchor="start" >Testing &amp; Quality</text>
+  <text x="82" y="136" fill="#9fb4ca" font-size="21" font-weight="500" text-anchor="start" >A release-oriented backend with automated verification and operational readiness.</text>
+  <rect x="1042" y="70" width="278" height="48" rx="24" fill="#0f2338" stroke="url(#quality-accent)" stroke-opacity="0.58"/>
+  <text x="1181" y="101" fill="#f7fbff" font-size="17" font-weight="800" text-anchor="middle" class="mono">DARAK BACKEND</text>
+  
+  <g opacity="1" filter="url(#quality-shadow)">
+    <rect x="96" y="202" width="548" height="374" rx="30" fill="#0e2238" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="96" y="202" width="548" height="5" rx="30" fill="#45e6a8"/>
+  </g>
+  <text x="142" y="284" fill="#f7fbff" font-size="126" font-weight="900" text-anchor="start" >677</text>
+  <text x="150" y="330" fill="#45e6a8" font-size="38" font-weight="850" text-anchor="start" >Tests Passed</text>
+  <text x="150" y="374" fill="#9fb4ca" font-size="25" font-weight="650" text-anchor="start" >0 failed / 0 skipped</text>
+  <path d="M150 442h390" stroke="#34516e" stroke-width="2"/>
+  <text x="150" y="494" fill="#9fb4ca" font-size="22" font-weight="500" text-anchor="start" >xUnit verification covers service logic, authorization boundaries, workflows, and commercial readiness checks.</text>
+  <g transform="translate(508 264)">
+    <circle cx="0" cy="0" r="72" fill="#45e6a8" fill-opacity="0.13" stroke="#45e6a8" stroke-width="4"/>
+    <path d="M-30 4l21 21l45-55" fill="none" stroke="#45e6a8" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g opacity="1" filter="url(#quality-soft-shadow)">
+    <rect x="716" y="210" width="262" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="716" y="210" width="262" height="5" rx="22" fill="#45e6a8"/>
+  </g>
+  <g>
+    <circle cx="764" cy="256" r="18" fill="#45e6a8" fill-opacity="0.12" stroke="#45e6a8" stroke-opacity="0.7"/>
+    <path d="M756 257l5 5 11-13" fill="none" stroke="#45e6a8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="804" y="264" fill="#f7fbff" font-size="23" font-weight="800" text-anchor="start" >Build Passed</text>
+  <g opacity="1" filter="url(#quality-soft-shadow)">
+    <rect x="1016" y="210" width="262" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="1016" y="210" width="262" height="5" rx="22" fill="#5b8cff"/>
+  </g>
+  <g>
+    <circle cx="1064" cy="256" r="18" fill="#5b8cff" fill-opacity="0.12" stroke="#5b8cff" stroke-opacity="0.7"/>
+    <path d="M1056 257l5 5 11-13" fill="none" stroke="#5b8cff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="1104" y="264" fill="#f7fbff" font-size="23" font-weight="800" text-anchor="start" >Docker Ready</text>
+  <g opacity="1" filter="url(#quality-soft-shadow)">
+    <rect x="716" y="342" width="262" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="716" y="342" width="262" height="5" rx="22" fill="#2dd4ff"/>
+  </g>
+  <g>
+    <circle cx="764" cy="388" r="18" fill="#2dd4ff" fill-opacity="0.12" stroke="#2dd4ff" stroke-opacity="0.7"/>
+    <path d="M756 389l5 5 11-13" fill="none" stroke="#2dd4ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="804" y="396" fill="#f7fbff" font-size="23" font-weight="800" text-anchor="start" >GitHub Actions</text>
+  <g opacity="1" filter="url(#quality-soft-shadow)">
+    <rect x="1016" y="342" width="262" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="1016" y="342" width="262" height="5" rx="22" fill="#ff6b7f"/>
+  </g>
+  <g>
+    <circle cx="1064" cy="388" r="18" fill="#ff6b7f" fill-opacity="0.12" stroke="#ff6b7f" stroke-opacity="0.7"/>
+    <path d="M1056 389l5 5 11-13" fill="none" stroke="#ff6b7f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="1104" y="396" fill="#f7fbff" font-size="23" font-weight="800" text-anchor="start" >SQL Server Verified</text>
+  <g opacity="1" filter="url(#quality-soft-shadow)">
+    <rect x="716" y="474" width="600" height="92" rx="22" fill="#0f2237" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="716" y="474" width="600" height="5" rx="22" fill="#f8bf4c"/>
+  </g>
+  <g>
+    <circle cx="764" cy="520" r="18" fill="#f8bf4c" fill-opacity="0.12" stroke="#f8bf4c" stroke-opacity="0.7"/>
+    <path d="M756 521l5 5 11-13" fill="none" stroke="#f8bf4c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g><text x="804" y="528" fill="#f7fbff" font-size="23" font-weight="800" text-anchor="start" >Swagger Enabled</text>
+  
+  <g opacity="1" filter="url(#quality-soft-shadow)">
+    <rect x="716" y="608" width="600" height="84" rx="24" fill="#0b1c30" stroke="#28445f" stroke-opacity="0.82"/>
+    <rect x="716" y="608" width="600" height="5" rx="24" fill="url(#quality-accent)"/>
+  </g>
+  <text x="758" y="660" fill="#f7fbff" font-size="24" font-weight="800" text-anchor="start" >Release evidence documented in repo docs</text></g>
+  </svg>
